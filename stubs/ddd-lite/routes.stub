@@ -1,0 +1,9 @@
+<?php
+
+use Illuminate\Support\Facades\Route;
+
+Route::middleware('web')->group(function () {
+    // Example:
+    // Route::get('/{{module}}', [\Modules\{{Module}}\App\Http\Controllers\HomeController::class, 'index'])
+    //     ->name('{{module}}.home');
+});

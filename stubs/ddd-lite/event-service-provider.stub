@@ -1,0 +1,20 @@
+<?php
+
+namespace Modules\{{Module}}\App\Providers;
+
+use Illuminate\Foundation\Support\Providers\EventServiceProvider as BaseEventServiceProvider;
+
+final class EventServiceProvider extends BaseEventServiceProvider
+{
+    protected $listen = [
+        // Domain or app events => listeners
+        // Example: \Modules\{{Module}}\Domain\Events\SomethingHappened::class => [
+        //     \Modules\{{Module}}\App\Listeners\DoSomething::class,
+        // ],
+    ];
+
+    public function boot(): void
+    {
+        //
+    }
+}

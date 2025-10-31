@@ -1,0 +1,10 @@
+<?php
+
+namespace Modules\{{Module}}\Domain\DTO;
+
+final class {{Name}}
+{
+    public function __construct(
+        public readonly string $id{{fields_extra}}
+    ) {}
+}

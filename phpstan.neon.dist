@@ -1,0 +1,18 @@
+includes:
+    - phpstan-baseline.neon
+
+parameters:
+    level: 9
+    paths:
+        - src
+        - config
+
+    ignoreErrors:
+        - identifier: missingType.iterableValue
+
+    tmpDir: build/phpstan
+    noModelMake: false
+    noUnnecessaryCollectionCall: false
+    checkModelProperties: true
+    inferPrivatePropertyTypeFromConstructor: true
+

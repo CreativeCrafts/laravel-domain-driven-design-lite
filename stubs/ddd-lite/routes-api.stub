@@ -1,0 +1,6 @@
+<?php
+
+use Illuminate\Support\Facades\Route;
+
+// Example (remove when you add real endpoints):
+Route::get('/health/{{module}}', fn () => response()->json(['ok' => true, 'module' => '{{Module}}']));
