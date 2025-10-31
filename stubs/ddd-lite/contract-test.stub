@@ -1,0 +1,11 @@
+<?php
+
+declare(strict_types=1);
+
+use Modules\{{ module }}\Domain\Contracts{{ namespaceSuffix }}\{{ class }}Contract;
+{{ testFakeImport }}
+
+it('resolves {{ class }}Contract', function (): void {
+    expect(interface_exists({{ class }}Contract::class))->toBeTrue();
+{{ testImplements }}
+});

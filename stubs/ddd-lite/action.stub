@@ -1,0 +1,18 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Modules\{{ module }}\Domain\Actions{{ namespaceSuffix }};
+
+{{ imports }}
+
+final class {{ class }}Action
+{
+    public function __construct(
+    ) {}
+
+    public function {{ method }}({{ params }}): {{ returnType }}
+    {
+        {{ body }}
+    }
+}

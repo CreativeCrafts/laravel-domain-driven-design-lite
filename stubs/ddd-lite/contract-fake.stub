@@ -1,0 +1,12 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Modules\{{ module }}\tests\Unit\fakes;
+
+use Modules\{{ module }}\Domain\Contracts{{ namespaceSuffix }}\{{ class }}Contract;
+
+final class {{ class }}Fake implements {{ class }}Contract
+{
+{{ fakeMethods }}
+}

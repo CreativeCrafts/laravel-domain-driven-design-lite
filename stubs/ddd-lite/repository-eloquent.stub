@@ -1,0 +1,43 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Modules\{{ module }}\App\Repositories;
+
+use Illuminate\Database\Eloquent\Model;
+use Modules\{{ module }}\App\Models\{{ aggregate }};
+use Modules\{{ module }}\Domain\Contracts\{{ aggregate }}RepositoryContract;
+use Modules\{{ module }}\Domain\DTO\{{ aggregate }}CreateData;
+use Modules\{{ module }}\Domain\DTO\{{ aggregate }}Data;
+use Modules\{{ module }}\Domain\DTO\{{ aggregate }}UpdateData;
+use Symfony\Component\Uid\Ulid;
+
+final class Eloquent{{ aggregate }}Repository implements {{ aggregate }}RepositoryContract
+{
+    public function __construct(private {{ aggregate }} $model) {}
+
+    public function findById(Ulid $id): ?{{ aggregate }}Data
+    {
+        $entity = $this->model->newQuery()->whereKey($id)->first();
+        return $entity instanceof Model ? $this->toDto($entity) : null;
+    }
+
+    public function create({{ aggregate }}CreateData $data): {{ aggregate }}Data
+    {
+        $entity = $this->model->newInstance();
+        $entity->save();
+        return $this->toDto($entity);
+    }
+
+    public function update(Ulid $id, {{ aggregate }}UpdateData $data): {{ aggregate }}Data
+    {
+        $entity = $this->model->newQuery()->whereKey($id)->firstOrFail();
+        $entity->save();
+        return $this->toDto($entity);
+    }
+
+    private function toDto(Model $entity): {{ aggregate }}Data
+    {
+        return new {{ aggregate }}Data();
+    }
+}

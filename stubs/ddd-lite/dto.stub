@@ -1,10 +1,16 @@
 <?php
 
-namespace Modules\{{Module}}\Domain\DTO;
+declare(strict_types=1);
 
-final class {{Name}}
+namespace Modules\{{ module }}\Domain\DTO{{ namespaceSuffix }};
+
+{{ imports }}
+final readonly class {{ class }}
 {
     public function __construct(
-        public readonly string $id{{fields_extra}}
-    ) {}
+{{ ctorParams }}
+    ) {
+    }
+
+{{ getters }}
 }

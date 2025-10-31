@@ -15,8 +15,6 @@ final readonly class BootstrapInspector
     }
 
     /**
-     * Returns true if the given provider FQCN is present anywhere in bootstrap/app.php.
-     *
      * @throws FileNotFoundException
      */
     public function providerMentioned(string $fqcn): bool
@@ -30,9 +28,6 @@ final readonly class BootstrapInspector
     }
 
     /**
-     * Returns true if the provider FQCN is present specifically inside the
-     * Application::configure(...)->withProviders([...]) chain.
-     *
      * @throws FileNotFoundException
      */
     public function providerInsideConfigureChain(string $fqcn): bool
@@ -44,7 +39,6 @@ final readonly class BootstrapInspector
 
         $src = (string)$this->fs->get($path);
 
-        // 1) Find "return Application::configure(...)" and match its closing ')'
         $retPos = strpos($src, 'return Application::configure');
         if ($retPos === false) {
             return false;
@@ -59,7 +53,6 @@ final readonly class BootstrapInspector
         }
         $configureEnd = $closeParenPos + 1;
 
-        // 2) Extract the chain region up to "->create()"
         $tail = (string)substr($src, $configureEnd);
         $create = strpos($tail, '->create()');
         if ($create === false) {
@@ -67,20 +60,15 @@ final readonly class BootstrapInspector
         }
         $chain = (string)substr($tail, 0, $create);
 
-        // 3) Look for withProviders([...]) inside the chain and check for the FQCN
         $withProvidersPattern = '/->withProviders\s*\(\s*\[(.*?)\]\s*\)/s';
         $m = [];
-        if (preg_match($withProvidersPattern, $chain, $m) !== 1) {
+        if (preg_match($withProvidersPattern, $chain, $m, PREG_OFFSET_CAPTURE) !== 1) {
             return false;
         }
-        $listBody = (string)($m[1] ?? '');
+        $listBody = (string)$m[1][0];
         return str_contains($listBody, $fqcn);
     }
 
-    /**
-     * Detects obvious out-of-chain, standalone $app->withProviders([...]); blocks.
-     * Returns true if such a block exists (which we’ll remove during normalisation).
-     */
     public function hasStandaloneWithProvidersBlock(): bool
     {
         $path = base_path('bootstrap/app.php');
@@ -89,7 +77,6 @@ final readonly class BootstrapInspector
         }
         $src = (string)$this->fs->get($path);
 
-        // Intentionally match "$app ->withProviders([ ... ]);" (outside chain)
         $pattern = '/\$app\s*->withProviders\s*\(\s*\[(.*?)\]\s*\)\s*;?/s';
         return (bool)preg_match($pattern, $src);
     }
@@ -153,7 +140,6 @@ final readonly class BootstrapInspector
         return $missing;
     }
 
-    /** Balanced paren finder used by providerInsideConfigureChain(). */
     private function findMatchingParen(string $src, int $openPos): ?int
     {
         $len = strlen($src);

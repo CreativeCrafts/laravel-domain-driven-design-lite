@@ -13,7 +13,7 @@ use JsonException;
 use Random\RandomException;
 use Throwable;
 
-class ModuleScaffoldCommand extends BaseCommand
+final class ModuleScaffoldCommand extends BaseCommand
 {
     protected $signature = 'ddd-lite:module
         {name : Module name in PascalCase (e.g., Planner)}
@@ -43,7 +43,6 @@ class ModuleScaffoldCommand extends BaseCommand
         }
 
         $module = Str::studly((string)$this->argument('name'));
-
         $aggregateOpt = $this->option('aggregate');
         $aggregate = is_string($aggregateOpt) && $aggregateOpt !== '' ? Str::studly($aggregateOpt) : 'Aggregate';
 
@@ -58,18 +57,13 @@ class ModuleScaffoldCommand extends BaseCommand
         $guard = new Psr4Guard();
 
         try {
-            // Ensure the composer has Modules mapping
             $guard->ensureModulesMapping($manifest);
+            $guard->assertOrFixCase($module, $dry, $fixPsr4, fn (string $msg) => $this->line($msg));
 
-            // If modules/<Module> already exists with lowercase dirs, optionally fix
-            $guard->assertOrFixCase($module, $dry, $fixPsr4, fn ($msg) => $this->line($msg));
-
-            // Track the module root directory (so rollback removes the whole tree)
             if (!$dry) {
                 $this->safe->ensureDirTracked($manifest, "modules/{$module}");
             }
 
-            // Create PascalCase directories (each tracked)
             $dirs = [
                 "modules/{$module}/App/Http/Controllers",
                 "modules/{$module}/App/Http/Requests",
@@ -92,7 +86,6 @@ class ModuleScaffoldCommand extends BaseCommand
                 $this->line("dir: {$d}");
             }
 
-            // Providers
             $providerClass = "{$module}ServiceProvider";
             $moduleProvider = $this->render('module-service-provider.stub', [
                 'Module' => $module,
@@ -102,7 +95,6 @@ class ModuleScaffoldCommand extends BaseCommand
                 $this->safe->writeNew($manifest, $pathProvider, $moduleProvider, $force);
             }
 
-            // RouteServiceProvider
             $routeProvider = $this->render('route-service-provider.stub', [
                 'Module' => $module,
             ]);
@@ -110,7 +102,6 @@ class ModuleScaffoldCommand extends BaseCommand
                 $this->safe->writeNew($manifest, "modules/{$module}/App/Providers/RouteServiceProvider.php", $routeProvider, $force);
             }
 
-            // EventServiceProvider
             $eventProvider = $this->render('event-service-provider.stub', [
                 'Module' => $module,
             ]);
@@ -118,7 +109,6 @@ class ModuleScaffoldCommand extends BaseCommand
                 $this->safe->writeNew($manifest, "modules/{$module}/App/Providers/EventServiceProvider.php", $eventProvider, $force);
             }
 
-            // Routes
             $routesWeb = $this->render('routes.stub', []);
             if (!$dry) {
                 $this->safe->writeNew($manifest, "modules/{$module}/Routes/web.php", $routesWeb, $force);
@@ -132,25 +122,21 @@ class ModuleScaffoldCommand extends BaseCommand
                 $this->safe->writeNew($manifest, "modules/{$module}/Routes/api.php", $routesApi, $force);
             }
 
-            // Register module provider in bootstrap/app.php
             if (!$dry) {
                 (new AppBootstrapEditor())->ensureModuleProvider($manifest, $module, $providerClass);
             }
 
-            // Model (ULID)
             $table = Str::snake(Str::pluralStudly($aggregate));
-            $fillable = '';
             $model = $this->render('model-ulid.stub', [
                 'Module' => $module,
                 'Name' => $aggregate,
                 'table' => $table,
-                'fillable' => $fillable,
+                'fillable' => '',
             ]);
             if (!$dry) {
                 $this->safe->writeNew($manifest, "modules/{$module}/App/Models/{$aggregate}.php", $model, $force);
             }
 
-            // Migration (ULID)
             $migration = $this->render('migration-ulid.stub', [
                 'table' => $table,
             ]);
@@ -159,16 +145,30 @@ class ModuleScaffoldCommand extends BaseCommand
                 $this->safe->writeNew($manifest, "modules/{$module}/Database/migrations/{$timestamp}_create_{$table}_table.php", $migration, $force);
             }
 
-            // Domain DTO (Data)
-            $dto = $this->render('dto.stub', [
-                'Module' => $module,
-                'NameBase' => $aggregate,
-            ]);
+            $dtoVars = static fn (string $class): array => [
+                'module' => $module,
+                'namespaceSuffix' => '',
+                'imports' => '',
+                'class' => $class,
+                'ctorParams' => '    ',
+                'getters' => '',
+            ];
+
+            $dto = $this->render('ddd-lite/dto.stub', $dtoVars("{$aggregate}Data"));
             if (!$dry) {
                 $this->safe->writeNew($manifest, "modules/{$module}/Domain/DTO/{$aggregate}Data.php", $dto, $force);
             }
 
-            // Domain Contract
+            $dtoCreate = $this->render('ddd-lite/dto.stub', $dtoVars("{$aggregate}CreateData"));
+            if (!$dry) {
+                $this->safe->writeNew($manifest, "modules/{$module}/Domain/DTO/{$aggregate}CreateData.php", $dtoCreate, $force);
+            }
+
+            $dtoUpdate = $this->render('ddd-lite/dto.stub', $dtoVars("{$aggregate}UpdateData"));
+            if (!$dry) {
+                $this->safe->writeNew($manifest, "modules/{$module}/Domain/DTO/{$aggregate}UpdateData.php", $dtoUpdate, $force);
+            }
+
             $contract = $this->render('contract-repo.stub', [
                 'Module' => $module,
                 'Name' => "{$aggregate}RepositoryContract",
@@ -179,21 +179,18 @@ class ModuleScaffoldCommand extends BaseCommand
                 $this->safe->writeNew($manifest, "modules/{$module}/Domain/Contracts/{$aggregate}RepositoryContract.php", $contract, $force);
             }
 
-            // Final sanity: assert a case once more (new scaffold)
-            $guard->assertOrFixCase($module, $dry, $fixPsr4, fn ($msg) => $this->line($msg));
+            $guard->assertOrFixCase($module, $dry, $fixPsr4, fn (string $msg) => $this->line($msg));
 
-            // Save manifest
             $manifest->save();
             $this->info("Module {$module} scaffolded. Manifest: " . $manifest->id());
-            $this->line('Validation: PSR-4 mapping ensured, PascalCase directories created (tracked), stubs written (tracked).');
             $this->line('Next step: run "composer dump-autoload -o"');
             return self::SUCCESS;
         } catch (Throwable $e) {
             $this->error('Error: ' . $e->getMessage());
             $manifest->save();
-            $this->warn("Rolling back (" . $manifest->id() . ") ...");
+            $this->warn('Rolling back (' . $manifest->id() . ') ...');
             $manifest->rollback();
-            $this->info("Rollback complete.");
+            $this->info('Rollback complete.');
             return self::FAILURE;
         }
     }

@@ -1,22 +1,19 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Modules\{{Module}}\Domain\Contracts;
 
 use Modules\{{Module}}\Domain\DTO\{{Dto}};
+use Modules\{{Module}}\Domain\DTO\{{DtoBase}}CreateData;
+use Modules\{{Module}}\Domain\DTO\{{DtoBase}}UpdateData;
+use Symfony\Component\Uid\Ulid;
 
 interface {{Name}}
 {
-    public function findById(string $id): ?{{Dto}};
+    public function findById(Ulid $id): ?{{Dto}};
 
-    /**
-     * Accepts Create DTO (pure PHP), returns read DTO.
-     * No Eloquent types allowed across this boundary.
-     */
-    public function create({{CreateDto}} $data): {{Dto}};
+    public function create({{DtoBase}}CreateData $data): {{Dto}};
 
-    /**
-     * Partial update by attributes, returns read DTO.
-     * (In real modules prefer a dedicated Update DTO.)
-     */
-    public function update(string $id, array $attributes): {{Dto}};
+    public function update(Ulid $id, {{DtoBase}}UpdateData $data): {{Dto}};
 }

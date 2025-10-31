@@ -1,0 +1,11 @@
+<?php
+
+declare(strict_types=1);
+
+use Modules\{{ module }}\Domain\Actions{{ namespaceSuffix }}\{{ class }}Action;
+
+it('executes {{ class }}Action', function (): void {
+    $action = app({{ class }}Action::class);
+    $result = $action->{{ method }}({{ args }});
+    expect(true)->toBeTrue();
+});

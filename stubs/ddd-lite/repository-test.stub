@@ -1,0 +1,19 @@
+<?php
+
+declare(strict_types=1);
+
+use Modules\{{ module }}\App\Repositories\Eloquent{{ aggregate }}Repository;
+use Modules\{{ module }}\Domain\Contracts\{{ aggregate }}RepositoryContract;
+use Modules\{{ module }}\Domain\DTO\{{ aggregate }}CreateData;
+
+it('resolves repository binding', function (): void {
+    $repo = app(Eloquent{{ aggregate }}Repository::class);
+    expect($repo)->toBeInstanceOf(Eloquent{{ aggregate }}Repository::class);
+    expect($repo)->toBeInstanceOf({{ aggregate }}RepositoryContract::class);
+});
+
+it('creates {{ aggregate }} via repository', function (): void {
+    $repo = app(Eloquent{{ aggregate }}Repository::class);
+    $dto = $repo->create(new {{ aggregate }}CreateData());
+    expect($dto)->not->toBeNull();
+});

@@ -1,0 +1,15 @@
+<?php
+
+declare(strict_types=1);
+
+use Modules\{{ module }}\Domain\DTO{{ namespaceSuffix }}\{{ class }};
+{{ testImports }}
+
+it('constructs {{ class }}', function (): void {
+{{ ctorArrange }}
+    $dto = new {{ class }}(
+{{ ctorArgs }}
+    );
+
+{{ ctorAsserts }}
+});
