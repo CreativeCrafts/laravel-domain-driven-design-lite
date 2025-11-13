@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace CreativeCrafts\DomainDrivenDesignLite\Support;
 
+use Illuminate\Contracts\Filesystem\FileNotFoundException;
 use Illuminate\Filesystem\Filesystem;
 use JsonException;
 use RuntimeException;
@@ -11,132 +12,96 @@ use RuntimeException;
 final readonly class Psr4Guard
 {
     public function __construct(
-        private Filesystem $fs = new Filesystem()
+        private Filesystem $files = new Filesystem(),
     ) {
     }
 
     /**
-     * Ensure composer.json has "Modules\\": "modules/". If not, patch it and track it in a manifest.
+     * Ensure "Modules\\" => "modules/" exists in composer.json autoload.psr-4.
+     * Uses canonical manifest ops (trackUpdate) and respects dry-run.
      *
-     * @throws JsonException
+     * @throws JsonException|FileNotFoundException
      */
-    public function ensureModulesMapping(Manifest $manifest): void
+    public function ensureModulesMapping(Manifest $manifest, bool $dryRun = false): void
     {
-        $composer = base_path('composer.json');
-        if (!is_file($composer)) {
-            throw new RuntimeException('composer.json not found at project root.');
+        $composerPath = base_path('composer.json');
+        if (!$this->files->exists($composerPath)) {
+            throw new RuntimeException("composer.json not found at {$composerPath}");
         }
 
-        $raw = file_get_contents($composer);
-        if ($raw === false) {
-            throw new RuntimeException('composer.json could not be read.');
-        }
-
+        $raw = (string)$this->files->get($composerPath);
         $json = json_decode($raw, true, 512, JSON_THROW_ON_ERROR);
+
         if (!is_array($json)) {
             throw new RuntimeException('composer.json is not valid JSON.');
         }
 
-        $before = $json;
-        $autoload = isset($json['autoload']) && is_array($json['autoload']) ? $json['autoload'] : [];
-        $psr4 = isset($autoload['psr-4']) && is_array($autoload['psr-4']) ? $autoload['psr-4'] : [];
+        $autoload = $json['autoload'] ?? [];
+        $psr4 = $autoload['psr-4'] ?? [];
 
-        if (!isset($psr4['Modules\\'])) {
-            $psr4['Modules\\'] = 'modules/';
-            $autoload['psr-4'] = $psr4;
-            $json['autoload'] = $autoload;
-
-            file_put_contents(
-                $composer,
-                json_encode($json, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . PHP_EOL
-            );
-
-            $manifest->trackComposerPatch($before, $json);
+        // Already present and correct? nothing to do.
+        if (isset($psr4['Modules\\']) && $psr4['Modules\\'] === 'modules/') {
+            return;
         }
+
+        // Patch in our mapping.
+        $psr4['Modules\\'] = 'modules/';
+        $json['autoload']['psr-4'] = $psr4;
+
+        $encoded = json_encode($json, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . PHP_EOL;
+
+        if ($dryRun) {
+            // Do not write or track during dry-run; just return after validation.
+            return;
+        }
+
+        // Back up an old file to a deterministic backup location, then write.
+        $relative = 'composer.json';
+        $backupRel = 'storage/app/ddd-lite_scaffold/backups/' . sha1($relative) . '.bak';
+        $backupAbs = base_path($backupRel);
+
+        // Ensure a backup directory exists.
+        $this->files->ensureDirectoryExists(dirname($backupAbs));
+        $this->files->put($backupAbs, $raw);
+
+        // Write the new composer.json.
+        $this->files->put($composerPath, $encoded);
+
+        // Record the update with backup in manifest.
+        $manifest->trackUpdate($relative, $backupRel);
     }
 
     /**
-     * Validate that the module path segments match its namespace case.
-     * We require: modules/<Module>/(App|Domain|Database|Routes).
-     * If $autoFix is true, perform safe renames; track them in Manifest.
+     * Ensure module directory casing aligns with PSR-4 (PascalCase module folder).
+     * If $fix is false, only assert and emit messages via $log; no writes.
      */
-    public function assertOrFixCase(
-        string $module,
-        bool $dryRun,
-        bool $autoFix,
-        callable $logger,
-        ?Manifest $manifest = null
-    ): void {
-        $base = base_path("modules/{$module}");
-        $expected = [
-            "{$base}/App",
-            "{$base}/Domain",
-            "{$base}/Database",
-            "{$base}/Routes",
-        ];
+    public function assertOrFixCase(string $module, bool $dryRun, bool $fix, callable $log): void
+    {
+        $modulesRoot = base_path('modules');
+        $currentLower = strtolower($module);
+        $target = $modulesRoot . DIRECTORY_SEPARATOR . $module;
 
-        $foundLower = [
-            "{$base}/app",
-            "{$base}/domain",
-            "{$base}/database",
-            "{$base}/routes",
-        ];
-
-        if (!is_dir($base)) {
+        // If the correctly cased folder already exists, nothing to do.
+        if (is_dir($target)) {
             return;
         }
 
-        $allOk = true;
-        foreach ($expected as $dir) {
-            if (!is_dir($dir)) {
-                $allOk = false;
-                break;
+        // If a lowercased variant exists (common on macOS), we can optionally fix.
+        $maybeLower = $modulesRoot . DIRECTORY_SEPARATOR . $currentLower;
+        if ($maybeLower !== $target && is_dir($maybeLower)) {
+            if (!$fix) {
+                $log("PSR-4 casing mismatch detected for module {$module}; run again with --fix-psr4 to normalize.");
+                return;
             }
-        }
-        if ($allOk) {
-            return;
-        }
-
-        $hasLower = false;
-        foreach ($foundLower as $lc) {
-            if (is_dir($lc)) {
-                $hasLower = true;
-                break;
-            }
-        }
-        if (!$hasLower) {
-            return;
-        }
-
-        if (!$autoFix) {
-            throw new RuntimeException("PSR-4 violation: detected lowercase module subdirectories under modules/{$module}. Re-run with --fix or rename to App/Domain/Database/Routes.");
-        }
-
-        foreach ($foundLower as $idx => $lc) {
-            if (!is_dir($lc)) {
-                continue;
-            }
-            $target = $expected[$idx];
-
-            $relFrom = $this->rel($lc);
-            $relTo = $this->rel($target);
 
             if ($dryRun) {
-                $logger("would rename: {$relFrom} -> {$relTo}");
-                continue;
+                $log("Would rename {$maybeLower} -> {$target}");
+                return;
             }
 
-            $this->fs->ensureDirectoryExists(dirname($target));
-            if (!@rename($lc, $target)) {
-                throw new RuntimeException("Failed to rename {$relFrom} to {$relTo}");
-            }
-            $manifest?->trackRename($relFrom, $relTo);
-            $logger("renamed: {$relFrom} -> {$relTo}");
+            // Attempt to rename it (best-effort; rely on underlying FS semantics).
+            rename($maybeLower, $target);
+            $log("Renamed {$maybeLower} -> {$target}");
         }
-    }
-
-    private function rel(string $abs): string
-    {
-        return ltrim(str_replace(base_path(), '', $abs), DIRECTORY_SEPARATOR);
     }
 }

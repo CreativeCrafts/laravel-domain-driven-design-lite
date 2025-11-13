@@ -1,0 +1,11 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Modules\{{ module }}\Domain\Builders;
+
+use Illuminate\Database\Eloquent\Builder;
+
+final class {{ class }} extends Builder
+{
+}

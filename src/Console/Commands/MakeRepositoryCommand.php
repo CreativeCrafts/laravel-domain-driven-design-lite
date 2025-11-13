@@ -4,15 +4,12 @@ declare(strict_types=1);
 
 namespace CreativeCrafts\DomainDrivenDesignLite\Console\Commands;
 
-use CreativeCrafts\DomainDrivenDesignLite\Support\Manifest;
-use CreativeCrafts\DomainDrivenDesignLite\Support\StubRenderer;
+use CreativeCrafts\DomainDrivenDesignLite\Console\BaseCommand;
 use Illuminate\Contracts\Filesystem\FileNotFoundException;
-use Illuminate\Filesystem\Filesystem;
 use Illuminate\Support\Str;
 use JsonException;
 use Random\RandomException;
 use RuntimeException;
-use Symfony\Component\Console\Input\InputArgument;
 
 final class MakeRepositoryCommand extends BaseCommand
 {
@@ -39,82 +36,106 @@ final class MakeRepositoryCommand extends BaseCommand
         if ($rollback !== '') {
             $m = $this->loadManifestOrFail($rollback);
             $m->rollback();
-            $this->info("Rollback complete for {$rollback}.");
+            $this->info('Rollback complete: ' . $rollback);
             return self::SUCCESS;
         }
 
         $module = Str::studly((string)$this->argument('module'));
         $aggregate = Str::studly((string)$this->argument('aggregate'));
+
+        if ($module === '' || $aggregate === '') {
+            $this->error('Arguments "module" and "aggregate" are required.');
+            return self::FAILURE;
+        }
+
         $noTest = $this->option('no-test') === true;
         $dry = $this->option('dry-run') === true;
         $force = $this->option('force') === true;
 
-        $fs = app(Filesystem::class);
-        $manifest = Manifest::begin($fs);
-
         $moduleRoot = base_path("modules/{$module}");
         if (!is_dir($moduleRoot)) {
-            throw new RuntimeException("Module not found: {$module}");
+            throw new RuntimeException('Module not found: ' . $module);
         }
 
         $reposDir = "{$moduleRoot}/App/Repositories";
         $phpPath = "{$reposDir}/Eloquent{$aggregate}Repository.php";
+
         $testsDir = "{$moduleRoot}/tests/Unit/App/Repositories";
         $testPath = "{$testsDir}/Eloquent{$aggregate}RepositoryTest.php";
-
-        $renderer = app(StubRenderer::class);
-
-        $stubVars = [
-            'module' => $module,
-            'aggregate' => $aggregate,
-        ];
 
         $this->twoColumn('Module', $module);
         $this->twoColumn('Repository', "Eloquent{$aggregate}Repository");
         $this->twoColumn('Path', $this->rel($phpPath));
         $this->twoColumn('Dry run', $dry ? 'yes' : 'no');
+        if (!$noTest) {
+            $this->twoColumn('Test', $this->rel($testPath));
+        }
 
-        if (!$dry) {
-            if (!is_dir($reposDir)) {
-                $fs->ensureDirectoryExists($reposDir);
-                $manifest->trackMkdir($this->rel($reposDir));
+        if ($dry) {
+            $this->line('Preview complete. No changes written.');
+            return self::SUCCESS;
+        }
+
+        $manifest = $this->beginManifest();
+
+        if (!is_dir($reposDir)) {
+            $this->files->ensureDirectoryExists($reposDir);
+            $manifest->trackMkdir($this->rel($reposDir));
+        }
+
+        $repoCode = $this->render('ddd-lite/repository-eloquent.stub', [
+            'module' => $module,
+            'aggregate' => $aggregate,
+        ]);
+
+        if ($this->files->exists($phpPath)) {
+            if (!$force) {
+                $this->error('File already exists: ' . $this->rel($phpPath) . ' (use --force to overwrite)');
+                return self::FAILURE;
             }
-
-            if (!$force && is_file($phpPath)) {
-                throw new RuntimeException('File already exists: ' . $this->rel($phpPath) . ' (use --force to overwrite)');
-            }
-
-            $code = $renderer->render('ddd-lite/repository-eloquent.stub', $stubVars);
-            $fs->put($phpPath, $code);
+            $backup = storage_path('app/ddd-lite_scaffold/backups/' . sha1($phpPath) . '.bak');
+            $this->files->ensureDirectoryExists(dirname($backup));
+            $this->files->put($backup, (string)$this->files->get($phpPath));
+            $this->files->put($phpPath, $repoCode);
+            $manifest->trackUpdate($this->rel($phpPath), $backup);
+        } else {
+            $this->files->put($phpPath, $repoCode);
             $manifest->trackCreate($this->rel($phpPath));
         }
 
         if (!$noTest) {
-            if (!$dry) {
-                if (!is_dir($testsDir)) {
-                    $fs->ensureDirectoryExists($testsDir);
-                    $manifest->trackMkdir($this->rel($testsDir));
-                }
+            if (!is_dir($testsDir)) {
+                $this->files->ensureDirectoryExists($testsDir);
+                $manifest->trackMkdir($this->rel($testsDir));
+            }
 
-                if ($force && !is_file($testPath)) {
-                    $test = $renderer->render('ddd-lite/repository-test.stub', $stubVars);
-                    $fs->put($testPath, $test);
+            $shouldWriteTest = true;
+            if ($this->files->exists($testPath) && !$force) {
+                $shouldWriteTest = false;
+            }
+
+            if ($shouldWriteTest) {
+                $testCode = $this->render('ddd-lite/repository-test.stub', [
+                    'module' => $module,
+                    'aggregate' => $aggregate,
+                ]);
+
+                if ($this->files->exists($testPath)) {
+                    $backup = storage_path('app/ddd-lite_scaffold/backups/' . sha1($testPath) . '.bak');
+                    $this->files->ensureDirectoryExists(dirname($backup));
+                    $this->files->put($backup, (string)$this->files->get($testPath));
+                    $this->files->put($testPath, $testCode);
+                    $manifest->trackUpdate($this->rel($testPath), $backup);
+                } else {
+                    $this->files->put($testPath, $testCode);
                     $manifest->trackCreate($this->rel($testPath));
                 }
             }
-            $this->twoColumn('Test', $this->rel($testPath));
         }
 
         $manifest->save();
         $this->info('Repository scaffold complete. Manifest: ' . $manifest->id());
-        return self::SUCCESS;
-    }
 
-    protected function getArguments(): array
-    {
-        return [
-            ['module', InputArgument::REQUIRED, 'Module name in PascalCase'],
-            ['aggregate', InputArgument::REQUIRED, 'Aggregate root name in PascalCase'],
-        ];
+        return self::SUCCESS;
     }
 }

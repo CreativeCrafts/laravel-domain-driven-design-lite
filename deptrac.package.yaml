@@ -1,0 +1,80 @@
+parameters:
+  paths:
+    - src
+
+  exclude_files:
+    - '#^src/.*\.stub$#'
+    - '#^src/.*Stubs/.*#'
+    - '#^stubs/.*#'
+    - '#^tests/.*#'
+    - '#^vendor/.*#'
+
+  layers:
+    - name: Provider
+      collectors:
+        - type: classNameRegex
+          value: '#^CreativeCrafts\\DomainDrivenDesignLite\\DomainDrivenDesignLiteServiceProvider$#'
+        - type: directory
+          value: 'src/Providers/.*'
+
+    - name: Console
+      collectors:
+        - type: directory
+          value: 'src/Console/.*'
+
+    - name: Support
+      collectors:
+        - type: directory
+          value: 'src/Support/.*'
+
+    - name: Core
+      collectors:
+        - type: bool
+          must:
+            - type: directory
+              value: 'src/.*'
+          must_not:
+            - type: directory
+              value: 'src/Console/.*'
+            - type: directory
+              value: 'src/Support/.*'
+            - type: directory
+              value: 'src/Providers/.*'
+            - type: classNameRegex
+              value: '#^CreativeCrafts\\DomainDrivenDesignLite\\DomainDrivenDesignLiteServiceProvider$#'
+
+    - name: Framework
+      collectors:
+        - type: classNameRegex
+          value: '#^(Illuminate|Laravel|Symfony|Psr|Carbon|Ramsey|GuzzleHttp|Doctrine|PhpParser)(?:\\\\|$)#'
+
+  ruleset:
+    Provider:
+      - Provider
+      - Console
+      - Support
+      - Core
+      - Framework
+
+    Console:
+      - Console
+      - Support
+      - Core
+      - Framework
+
+    Support:
+      - Support
+      - Core
+      - Framework
+
+    Core:
+      - Core
+      - Framework
+
+  skip_violations: { }
+
+  paths_to_ignore:
+    - '#^vendor/#'
+
+services:
+# default

@@ -1,0 +1,19 @@
+includes:
+	- vendor/larastan/larastan/extension.neon
+
+parameters:
+	paths:
+		- app
+		- modules
+	level: 8
+	tmpDir: storage/framework/cache/phpstan
+	reportUnmatchedIgnoredErrors: true
+
+	excludePaths:
+		- vendor
+		- storage
+		- bootstrap/cache
+
+	# Safe, widely compatible defaults. Users can tighten as needed.
+	checkGenericClasses: false
+	checkMissingIterableValueType: false

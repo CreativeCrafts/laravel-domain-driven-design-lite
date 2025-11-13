@@ -1,0 +1,21 @@
+<?php
+
+declare(strict_types=1);
+
+namespace {{ namespace }};
+
+use Illuminate\Database\Eloquent\Concerns\HasUlids;
+use Illuminate\Database\Eloquent\Model;
+{{ soft_deletes_import }}
+
+final class {{ class }} extends Model
+{
+    use HasUlids{{ soft_deletes_trait }};
+
+    protected string $table = '{{ table }}';
+
+    public bool $incrementing = false;
+
+    protected string $keyType = 'string';{{ timestamps_property }}{{ fill_guard_block }}
+    protected array $casts = [];
+}

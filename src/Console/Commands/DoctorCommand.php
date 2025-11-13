@@ -4,14 +4,13 @@ declare(strict_types=1);
 
 namespace CreativeCrafts\DomainDrivenDesignLite\Console\Commands;
 
+use CreativeCrafts\DomainDrivenDesignLite\Console\BaseCommand;
 use CreativeCrafts\DomainDrivenDesignLite\Support\AppBootstrapEditor;
 use CreativeCrafts\DomainDrivenDesignLite\Support\BootstrapInspector;
 use CreativeCrafts\DomainDrivenDesignLite\Support\ClassFixer;
-use CreativeCrafts\DomainDrivenDesignLite\Support\Manifest;
 use CreativeCrafts\DomainDrivenDesignLite\Support\PhpClassScanner;
 use CreativeCrafts\DomainDrivenDesignLite\Support\Psr4Guard;
 use Illuminate\Contracts\Filesystem\FileNotFoundException;
-use Illuminate\Filesystem\Filesystem;
 use JsonException;
 use Random\RandomException;
 use Throwable;
@@ -53,12 +52,14 @@ final class DoctorCommand extends BaseCommand
         $preferOpt = $this->option('prefer');
         $prefer = in_array($preferOpt, ['file', 'class'], true) ? $preferOpt : 'file';
 
-        $manifest = Manifest::begin(app(Filesystem::class));
         $guard = new Psr4Guard();
         $inspector = new BootstrapInspector();
         $editor = new AppBootstrapEditor();
         $scanner = new PhpClassScanner();
         $fixer = new ClassFixer();
+
+        $manifest = null;
+        $anyChange = false;
 
         $report = [
             'composer_psr4' => [
@@ -81,8 +82,10 @@ final class DoctorCommand extends BaseCommand
                     if ($dry) {
                         $this->line('[doctor] would add "Modules\\\\": "modules/" to composer.json');
                     } else {
+                        $manifest = $manifest ?? $this->beginManifest();
                         $guard->ensureModulesMapping($manifest);
                         $report['composer_psr4']['changed'] = true;
+                        $anyChange = true;
                         $this->line('[doctor] added "Modules\\\\": "modules/" to composer.json');
                     }
                 } else {
@@ -135,8 +138,10 @@ final class DoctorCommand extends BaseCommand
                     if ($dry) {
                         $this->line('[doctor] would ensure withRouting keys: ' . implode(', ', array_keys($map)));
                     } else {
+                        $manifest = $manifest ?? $this->beginManifest();
                         $editor->ensureRoutingKeys($manifest, $map);
                         $report['routing']['changed'] = true;
+                        $anyChange = true;
                         $this->line('[doctor] ensured withRouting keys: ' . implode(', ', array_keys($map)));
                     }
                 } else {
@@ -158,7 +163,7 @@ final class DoctorCommand extends BaseCommand
                         $dry,
                         $fix,
                         fn (string $msg) => $this->line("[doctor][$mod] {$msg}"),
-                        $manifest
+                        $manifest ?? $this->files // guard may ignore manifest on non-fix paths
                     );
                 } catch (Throwable $e) {
                     $moduleReport['status'] = 'error';
@@ -199,11 +204,14 @@ final class DoctorCommand extends BaseCommand
                             $this->line("[doctor][$mod] would inject {$fqcn} into Application::configure(...)->withProviders([...]).");
                             $moduleReport['actions'][] = "inject {$fqcn} into chain";
                         } else {
+                            $manifest = $manifest ?? $this->beginManifest();
                             if ($inspector->hasStandaloneWithProvidersBlock()) {
                                 $editor->removeStandaloneWithProviders($manifest);
+                                $anyChange = true;
                                 $this->line("[doctor][$mod] removed standalone \$app->withProviders([...]).");
                             }
                             $editor->ensureModuleProvider($manifest, $mod, $mod . 'ServiceProvider');
+                            $anyChange = true;
                             $this->line("[doctor][$mod] injected {$fqcn} into Application::configure(...)->withProviders([...]).");
                             if (!$inspector->providerInsideConfigureChain($fqcn)) {
                                 $this->warn("[doctor][$mod] injection verification failed (please review bootstrap/app.php).");
@@ -245,11 +253,15 @@ final class DoctorCommand extends BaseCommand
                                     : "would rename file to '{$declaredShort}.php' in Providers";
                                 $this->line("[doctor][$mod] mismatch Providers/" . basename($path) . " — prefer={$prefer} (dry-run)");
                             } elseif ($prefer === 'file') {
+                                $manifest = $manifest ?? $this->beginManifest();
                                 $fixer->renameClassInFile($manifest, $path, $declaredShort, $fileShort);
+                                $anyChange = true;
                                 $this->line("[doctor][$mod] changed class to '{$fileShort}' in Providers/" . basename($path));
                             } else {
                                 $dest = dirname($path) . DIRECTORY_SEPARATOR . $declaredShort . '.php';
+                                $manifest = $manifest ?? $this->beginManifest();
                                 $fixer->renameFile($manifest, $path, $dest);
+                                $anyChange = true;
                                 $this->line("[doctor][$mod] renamed Providers file to '{$declaredShort}.php'");
                             }
                         }
@@ -285,11 +297,15 @@ final class DoctorCommand extends BaseCommand
                                     : "would rename file to '{$declaredShort}.php' in Controllers";
                                 $this->line("[doctor][$mod] mismatch Controllers/" . basename($path) . " — prefer={$prefer} (dry-run)");
                             } elseif ($prefer === 'file') {
+                                $manifest = $manifest ?? $this->beginManifest();
                                 $fixer->renameClassInFile($manifest, $path, $declaredShort, $fileShort);
+                                $anyChange = true;
                                 $this->line("[doctor][$mod] changed class to '{$fileShort}' in Controllers/" . basename($path));
                             } else {
                                 $dest = dirname($path) . DIRECTORY_SEPARATOR . $declaredShort . '.php';
+                                $manifest = $manifest ?? $this->beginManifest();
                                 $fixer->renameFile($manifest, $path, $dest);
+                                $anyChange = true;
                                 $this->line("[doctor][$mod] renamed Controllers file to '{$declaredShort}.php'");
                             }
                         }
@@ -299,22 +315,30 @@ final class DoctorCommand extends BaseCommand
                 $report['modules'][] = $moduleReport;
             }
 
-            $manifest->save();
-
             if ($jsonOut) {
                 $this->line(json_encode($report, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
             } else {
-                $this->info('[doctor] complete. Manifest: ' . $manifest->id());
-                $this->line('Tip: run "composer dump-autoload -o" if fixes were applied.');
+                if ($anyChange) {
+                    if ($manifest === null) {
+                        $manifest = $this->beginManifest(); // defensive; should not happen if anyChange=true
+                    }
+                    $manifest->save();
+                    $this->info('[doctor] complete. Manifest: ' . $manifest->id());
+                    $this->line('Tip: run "composer dump-autoload -o" if fixes were applied.');
+                } else {
+                    $this->info('[doctor] complete. No fixes applied.');
+                }
             }
 
             return self::SUCCESS;
         } catch (Throwable $e) {
             $this->error('[doctor] error: ' . $e->getMessage());
-            $manifest->save();
-            $this->warn('Rolling back (' . $manifest->id() . ') ...');
-            $manifest->rollback();
-            $this->info('Rollback complete.');
+            if ($manifest !== null) {
+                $manifest->save();
+                $this->warn('Rolling back (' . $manifest->id() . ') ...');
+                $manifest->rollback();
+                $this->info('Rollback complete.');
+            }
             return self::FAILURE;
         }
     }

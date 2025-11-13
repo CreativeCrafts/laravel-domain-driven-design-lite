@@ -4,10 +4,8 @@ declare(strict_types=1);
 
 namespace CreativeCrafts\DomainDrivenDesignLite\Console\Commands;
 
-use CreativeCrafts\DomainDrivenDesignLite\Support\Manifest;
-use CreativeCrafts\DomainDrivenDesignLite\Support\StubRenderer;
+use CreativeCrafts\DomainDrivenDesignLite\Console\BaseCommand;
 use Illuminate\Contracts\Filesystem\FileNotFoundException;
-use Illuminate\Filesystem\Filesystem;
 use Illuminate\Support\Str;
 use JsonException;
 use Random\RandomException;
@@ -59,9 +57,6 @@ final class MakeActionCommand extends BaseCommand
         $dry = $this->option('dry-run') === true;
         $force = $this->option('force') === true;
 
-        $fs = app(Filesystem::class);
-        $manifest = Manifest::begin($fs);
-
         $moduleRoot = base_path("modules/{$module}");
         if (!is_dir($moduleRoot)) {
             throw new RuntimeException("Module not found: {$module}");
@@ -82,11 +77,11 @@ final class MakeActionCommand extends BaseCommand
         $params = '';
         $args = '';
 
-        if ($inputOpt !== '') {
+        if ($inputOpt !== '' && $inputOpt !== 'none') {
             if ($inputOpt === 'ulid') {
                 $imports[] = 'use Symfony\Component\Uid\Ulid;';
                 $params = 'Ulid $' . $paramName;
-                $args = "new Ulid('00000000000000000000000000')";
+                $args = 'new Ulid()';
             } elseif (str_contains($inputOpt, '\\')) {
                 $short = class_basename($inputOpt);
                 $imports[] = 'use ' . $inputOpt . ';';
@@ -105,6 +100,9 @@ final class MakeActionCommand extends BaseCommand
                 $imports[] = 'use Symfony\Component\Uid\Ulid;';
                 $returnType = 'Ulid';
                 $body = 'return new Ulid();';
+            } elseif ($returnsOpt === 'void') {
+                $returnType = 'void';
+                $body = '';
             } elseif (str_contains($returnsOpt, '\\')) {
                 $short = class_basename($returnsOpt);
                 $imports[] = 'use ' . $returnsOpt . ';';
@@ -116,12 +114,8 @@ final class MakeActionCommand extends BaseCommand
         }
 
         $imports = array_values(array_unique($imports));
-        $importsBlock = implode(PHP_EOL, $imports);
-        if ($importsBlock !== '') {
-            $importsBlock .= PHP_EOL;
-        }
+        $importsBlock = $imports === [] ? '' : implode(PHP_EOL, $imports) . PHP_EOL;
 
-        $renderer = app(StubRenderer::class);
         $stubVars = [
             'module' => $module,
             'namespaceSuffix' => $namespaceSuffix,
@@ -139,18 +133,40 @@ final class MakeActionCommand extends BaseCommand
         $this->twoColumn('Path', $this->rel($phpPath));
         $this->twoColumn('Dry run', $dry ? 'yes' : 'no');
 
-        if (!$dry) {
-            if (!is_dir($actionsDir)) {
-                $fs->ensureDirectoryExists($actionsDir);
-                $manifest->trackMkdir($this->rel($actionsDir));
-            }
+        $code = $this->render('ddd-lite/action.stub', $stubVars);
 
-            if (!$force && is_file($phpPath)) {
-                throw new RuntimeException('File already exists: ' . $this->rel($phpPath) . ' (use --force to overwrite)');
-            }
+        if ($dry) {
+            $this->line('Preview complete. No changes written.');
+            return self::SUCCESS;
+        }
 
-            $code = $renderer->render('ddd-lite/action.stub', $stubVars);
-            $fs->put($phpPath, $code);
+        $manifest = $this->beginManifest();
+
+        if (!is_dir($actionsDir)) {
+            $this->files->ensureDirectoryExists($actionsDir);
+            $manifest->trackMkdir($this->rel($actionsDir));
+        }
+
+        $exists = $this->files->exists($phpPath);
+
+        if ($exists && !$force) {
+            $current = (string)$this->files->get($phpPath);
+            if ($current === $code) {
+                $this->info('No changes detected. File already matches generated output.');
+                return self::SUCCESS;
+            }
+            $this->error('File already exists. Use --force to overwrite.');
+            return self::FAILURE;
+        }
+
+        if ($exists) {
+            $backup = storage_path('app/ddd-lite_scaffold/backups/' . sha1($phpPath) . '.bak');
+            $this->files->ensureDirectoryExists(dirname($backup));
+            $this->files->put($backup, (string)$this->files->get($phpPath));
+            $this->files->put($phpPath, $code);
+            $manifest->trackUpdate($this->rel($phpPath), $backup);
+        } else {
+            $this->files->put($phpPath, $code);
             $manifest->trackCreate($this->rel($phpPath));
         }
 
@@ -158,17 +174,25 @@ final class MakeActionCommand extends BaseCommand
             $testsDir = "{$moduleRoot}/tests/Unit/Domain/Actions";
             $testPath = "{$testsDir}/{$class}Test.php";
 
-            if (!$dry) {
-                if (!is_dir($testsDir)) {
-                    $fs->ensureDirectoryExists($testsDir);
-                    $manifest->trackMkdir($this->rel($testsDir));
-                }
+            if (!is_dir($testsDir)) {
+                $this->files->ensureDirectoryExists($testsDir);
+                $manifest->trackMkdir($this->rel($testsDir));
+            }
 
-                if ($force || !is_file($testPath)) {
-                    $test = $renderer->render('ddd-lite/action-test.stub', $stubVars);
-                    $fs->put($testPath, $test);
-                    $manifest->trackCreate($this->rel($testPath));
-                }
+            $testCode = $this->render('ddd-lite/action-test.stub', $stubVars);
+            $testExists = $this->files->exists($testPath);
+
+            if ($testExists && !$force) {
+                $this->twoColumn('Test skipped', 'exists (use --force to overwrite)');
+            } elseif ($testExists) {
+                $backup = storage_path('app/ddd-lite_scaffold/backups/' . sha1($testPath) . '.bak');
+                $this->files->ensureDirectoryExists(dirname($backup));
+                $this->files->put($backup, (string)$this->files->get($testPath));
+                $this->files->put($testPath, $testCode);
+                $manifest->trackUpdate($this->rel($testPath), $backup);
+            } else {
+                $this->files->put($testPath, $testCode);
+                $manifest->trackCreate($this->rel($testPath));
             }
 
             $this->twoColumn('Test', $this->rel($testPath));
@@ -176,6 +200,7 @@ final class MakeActionCommand extends BaseCommand
 
         $manifest->save();
         $this->info('Action scaffold complete. Manifest: ' . $manifest->id());
+
         return self::SUCCESS;
     }
 

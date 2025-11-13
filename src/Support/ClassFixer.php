@@ -42,11 +42,15 @@ final readonly class ClassFixer
         if (!is_file($from)) {
             throw new RuntimeException("File not found: {$from}");
         }
+
         $this->fs->ensureDirectoryExists(dirname($to));
+
         if (!@rename($from, $to)) {
             throw new RuntimeException("Failed to rename {$from} to {$to}");
         }
-        $manifest->trackRename($this->rel($from), $this->rel($to));
+
+        // Canonical manifest op is "move", not "rename".
+        $manifest->trackMove($this->rel($from), $this->rel($to));
     }
 
     private function escape(string $s): string

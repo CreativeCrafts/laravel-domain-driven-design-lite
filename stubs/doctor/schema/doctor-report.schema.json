@@ -1,0 +1,133 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://creativecrafts.dev/ddd-lite/doctor-report.schema.json",
+  "title": "DDD-Lite Doctor Report",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "version",
+    "generatedAt",
+    "status",
+    "totals",
+    "violations"
+  ],
+  "properties": {
+    "version": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$",
+      "description": "Semantic version of the report format, independent of package version."
+    },
+    "generatedAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO8601 timestamp when the report was generated."
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "ok",
+        "fail"
+      ],
+      "description": "Overall status derived from totals and/or --fail-on policy."
+    },
+    "metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [],
+      "properties": {
+        "packageVersion": {
+          "type": "string"
+        },
+        "commit": {
+          "type": "string"
+        },
+        "branch": {
+          "type": "string"
+        },
+        "ci": {
+          "type": "boolean"
+        }
+      },
+      "description": "Optional contextual info to assist CI or dashboards."
+    },
+    "totals": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "errors",
+        "warnings",
+        "fixable"
+      ],
+      "properties": {
+        "errors": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "warnings": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "fixable": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "description": "Aggregated counts for the violations list."
+    },
+    "violations": {
+      "type": "array",
+      "description": "Flat list of normalized findings; deterministic order.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "type",
+          "code",
+          "message",
+          "file",
+          "line",
+          "fixable"
+        ],
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "error",
+              "warning"
+            ]
+          },
+          "code": {
+            "type": "string",
+            "minLength": 1
+          },
+          "message": {
+            "type": "string",
+            "minLength": 1
+          },
+          "file": {
+            "type": "string",
+            "minLength": 1
+          },
+          "line": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "column": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "doctorKey": {
+            "type": "string",
+            "description": "Stable key for the rule/category (e.g., provider_placement)."
+          },
+          "suggestion": {
+            "type": "string"
+          },
+          "fixable": {
+            "type": "boolean"
+          }
+        }
+      }
+    }
+  }
+}

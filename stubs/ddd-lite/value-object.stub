@@ -1,0 +1,39 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Modules\{{ Module }}\Domain\ValueObjects;
+
+final class {{ Name }}
+{
+    /**
+     * The underlying scalar value for this Value Object.
+     */
+    private function __construct(
+        public readonly {{ Scalar }} $value
+    ) {}
+
+    /**
+     * Factory: create a new Value Object.
+     */
+    public static function make({{ Scalar }} $value): self
+    {
+        return new self($value);
+    }
+
+    /**
+     * Compare by value equality.
+     */
+    public function equals(self $other): bool
+    {
+        return $this->value === $other->value;
+    }
+
+    /**
+     * String representation (useful in logs / debug).
+     */
+    public function __toString(): string
+    {
+        return (string) $this->value;
+    }
+}

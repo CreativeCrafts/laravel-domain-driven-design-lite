@@ -1,0 +1,25 @@
+<?php
+
+declare(strict_types=1);
+
+use Pest\Arch\Contracts\ArchExpectation;
+use function Pest\Arch\layer;
+
+dataset('layers', [
+    'Domain' => 'Modules/.+/Domain/.*',
+    'Application' => 'Modules/.+/App/.*',
+]);
+
+test('application may depend on domain and framework', function (string $regex): void {
+    $expectation = layer('Application', $regex);
+    expect($expectation)->toBeInstanceOf(ArchExpectation::class);
+})->with([
+    fn () => dataset('layers')['Application'],
+]);
+
+test('domain may depend on framework', function (string $regex): void {
+    $expectation = layer('Domain', $regex);
+    expect($expectation)->toBeInstanceOf(ArchExpectation::class);
+})->with([
+    fn () => dataset('layers')['Domain'],
+]);

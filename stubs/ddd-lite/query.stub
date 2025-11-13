@@ -1,0 +1,20 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Modules\{{ module }}\Domain\Queries;
+
+final readonly class {{ class }}
+{
+    public function __construct()
+    {
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function run(): array
+    {
+        return [];
+    }
+}

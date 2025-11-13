@@ -23,22 +23,25 @@
   ],
   "require": {
     "php": "^8.3",
-    "spatie/laravel-package-tools": "^1.16",
+    "spatie/laravel-package-tools": "^1.92",
     "illuminate/contracts": "^12.0",
     "illuminate/support": "^12.0",
     "illuminate/console": "^12.0",
     "illuminate/filesystem": "^12.0",
-    "symfony/uid": "^7.0"
+    "symfony/uid": "^7.3",
+    "nikic/php-parser": "^5.6"
   },
   "require-dev": {
-    "laravel/pint": "^1.14",
+    "deptrac/deptrac": "^4.2",
+    "larastan/larastan": "^3.8",
+    "laravel/pint": "^1.25",
     "nunomaduro/collision": "^8.8",
-    "larastan/larastan": "^3.0",
-    "orchestra/testbench": "^10.0.0",
-    "pestphp/pest": "^4.0",
+    "orchestra/testbench": "^10.6",
+    "pestphp/pest": "^4.1",
     "pestphp/pest-plugin-arch": "^4.0",
     "pestphp/pest-plugin-laravel": "^4.0",
     "phpstan/extension-installer": "^1.4",
+    "phpstan/phpstan": "^2.1",
     "phpstan/phpstan-deprecation-rules": "^2.0",
     "phpstan/phpstan-phpunit": "^2.0",
     "roave/security-advisories": "dev-latest"
@@ -54,12 +57,16 @@
     }
   },
   "scripts": {
+    "stan": "vendor/bin/phpstan analyse -c phpstan.neon.dist --memory-limit=1G",
+    "stan:baseline": "vendor/bin/phpstan analyse -c phpstan.neon.dist --generate-baseline=phpstan-baseline.neon --memory-limit=1G",
+    "deptrac:package": "vendor/bin/deptrac --config-file=deptrac.package.yaml",
+    "deptrac:app-template": "vendor/bin/deptrac --config-file=stubs/deptrac/deptrac.app.yaml",
     "post-autoload-dump": "@composer run prepare",
     "prepare": "@php vendor/bin/testbench package:discover --ansi",
     "analyse": "vendor/bin/phpstan analyse",
     "test": "vendor/bin/pest",
     "test-coverage": "vendor/bin/pest --coverage",
-    "test-mutation": "vendor/bin/infection",
+    "test:arch": "pest --group=arch",
     "format": "vendor/bin/pint",
     "check-deps": "composer outdated --direct",
     "validate-composer": "composer validate --strict",
@@ -92,7 +99,6 @@
         "CreativeCrafts\\DomainDrivenDesignLite\\DomainDrivenDesignLiteServiceProvider"
       ],
       "aliases": {
-        "DomainDrivenDesignLite": "CreativeCrafts\\DomainDrivenDesignLite\\Facades\\DomainDrivenDesignLite"
       }
     }
   },

@@ -1,0 +1,47 @@
+<?php
+
+declare(strict_types=1);
+
+namespace {{ namespace }};
+
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Illuminate\Http\Response;
+
+final class {{ class }}
+{
+    public function index(Request $request): Response
+    {
+        return response()->noContent();
+    }
+
+    public function create(Request $request): Response
+    {
+        return response()->noContent();
+    }
+
+    public function store(Request $request): RedirectResponse
+    {
+        return redirect()->back();
+    }
+
+    public function show(string $id): Response
+    {
+        return response()->noContent();
+    }
+
+    public function edit(string $id): Response
+    {
+        return response()->noContent();
+    }
+
+    public function update(Request $request, string $id): RedirectResponse
+    {
+        return redirect()->back();
+    }
+
+    public function destroy(string $id): RedirectResponse
+    {
+        return redirect()->back();
+    }
+}

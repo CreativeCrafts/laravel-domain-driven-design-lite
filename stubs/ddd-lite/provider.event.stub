@@ -1,0 +1,17 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Modules\{{ module }}\App\Providers;
+
+use Illuminate\Foundation\Support\Providers\EventServiceProvider as BaseEventServiceProvider;
+
+final class EventServiceProvider extends BaseEventServiceProvider
+{
+    protected $listen = [
+    ];
+
+    public function boot(): void
+    {
+    }
+}

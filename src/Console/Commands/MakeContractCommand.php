@@ -4,10 +4,8 @@ declare(strict_types=1);
 
 namespace CreativeCrafts\DomainDrivenDesignLite\Console\Commands;
 
-use CreativeCrafts\DomainDrivenDesignLite\Support\Manifest;
-use CreativeCrafts\DomainDrivenDesignLite\Support\StubRenderer;
+use CreativeCrafts\DomainDrivenDesignLite\Console\BaseCommand;
 use Illuminate\Contracts\Filesystem\FileNotFoundException;
-use Illuminate\Filesystem\Filesystem;
 use Illuminate\Support\Str;
 use JsonException;
 use Random\RandomException;
@@ -31,8 +29,8 @@ final class MakeContractCommand extends BaseCommand
 
     /**
      * @throws RandomException
-     * @throws FileNotFoundException
      * @throws JsonException
+     * @throws FileNotFoundException
      */
     public function handle(): int
     {
@@ -55,9 +53,6 @@ final class MakeContractCommand extends BaseCommand
         $dry = $this->option('dry-run') === true;
         $force = $this->option('force') === true;
 
-        $fs = app(Filesystem::class);
-        $manifest = Manifest::begin($fs);
-
         $moduleRoot = base_path("modules/{$module}");
         if (!is_dir($moduleRoot)) {
             throw new RuntimeException("Module not found: {$module}");
@@ -66,7 +61,6 @@ final class MakeContractCommand extends BaseCommand
         $contractsDir = $suffixPath === ''
             ? "{$moduleRoot}/Domain/Contracts"
             : "{$moduleRoot}/Domain/Contracts/{$suffixPath}";
-
         $class = Str::studly($base);
         $phpPath = "{$contractsDir}/{$class}Contract.php";
 
@@ -75,14 +69,11 @@ final class MakeContractCommand extends BaseCommand
             : '\\' . str_replace('/', '\\', str_replace('\\', '/', $suffixPath));
 
         $methods = $this->parseMethods($methodsSpec);
-
         $imports = $this->collectImports($methods);
         $importsBlock = $imports === [] ? '' : implode(PHP_EOL, $imports) . PHP_EOL;
-
         $methodsBlock = $this->renderMethods($methods);
         $fakeMethodsBlock = $withFake ? $this->renderFakeMethods($methods) : '';
 
-        $renderer = app(StubRenderer::class);
         $stubVars = [
             'module' => $module,
             'namespaceSuffix' => $namespaceSuffix,
@@ -97,35 +88,69 @@ final class MakeContractCommand extends BaseCommand
         $this->twoColumn('Path', $this->rel($phpPath));
         $this->twoColumn('Dry run', $dry ? 'yes' : 'no');
 
-        if (!$dry) {
-            if (!is_dir($contractsDir)) {
-                $fs->ensureDirectoryExists($contractsDir);
-                $manifest->trackMkdir($this->rel($contractsDir));
-            }
+        $code = $this->render('ddd-lite/contract.stub', $stubVars);
 
-            if (!$force && is_file($phpPath)) {
-                throw new RuntimeException('File already exists: ' . $this->rel($phpPath) . ' (use --force to overwrite)');
-            }
+        if ($dry) {
+            $this->line('Preview complete. No changes written.');
+            return self::SUCCESS;
+        }
 
-            $code = $renderer->render('ddd-lite/contract.stub', $stubVars);
-            $fs->put($phpPath, $code);
+        $manifest = $this->beginManifest();
+
+        if (!is_dir($contractsDir)) {
+            $this->files->ensureDirectoryExists($contractsDir);
+            $manifest->trackMkdir($this->rel($contractsDir));
+        }
+
+        $exists = $this->files->exists($phpPath);
+
+        if ($exists && !$force) {
+            $current = (string)$this->files->get($phpPath);
+            if ($current === $code) {
+                $this->info('No changes detected. File already up to date.');
+                return self::SUCCESS;
+            }
+            $this->error('File already exists. Use --force to overwrite.');
+            return self::FAILURE;
+        }
+
+        if ($exists) {
+            $backup = storage_path('app/ddd-lite_scaffold/backups/' . sha1($phpPath) . '.bak');
+            $this->files->ensureDirectoryExists(dirname($backup));
+            $this->files->put($backup, (string)$this->files->get($phpPath));
+            $this->files->put($phpPath, $code);
+            $manifest->trackUpdate($this->rel($phpPath), $backup);
+        } else {
+            $this->files->put($phpPath, $code);
             $manifest->trackCreate($this->rel($phpPath));
         }
 
         if ($withFake) {
             $fakesDir = "{$moduleRoot}/tests/Unit/fakes";
             $fakePath = "{$fakesDir}/{$class}Fake.php";
-            if (!$dry) {
-                if (!is_dir($fakesDir)) {
-                    $fs->ensureDirectoryExists($fakesDir);
-                    $manifest->trackMkdir($this->rel($fakesDir));
-                }
-                if ($force || !is_file($fakePath)) {
-                    $fake = $renderer->render('ddd-lite/contract-fake.stub', $stubVars);
-                    $fs->put($fakePath, $fake);
-                    $manifest->trackCreate($this->rel($fakePath));
-                }
+            $fakeCode = $this->render('ddd-lite/contract-fake.stub', $stubVars);
+
+            if (!is_dir($fakesDir)) {
+                $this->files->ensureDirectoryExists($fakesDir);
+                $manifest->trackMkdir($this->rel($fakesDir));
             }
+
+            $fakeExists = $this->files->exists($fakePath);
+
+            if ($fakeExists && !$force) {
+                $this->twoColumn('Fake skipped', 'exists (use --force to overwrite)');
+            } elseif ($fakeExists) {
+                $backup = storage_path('app/ddd-lite_scaffold/backups/' . sha1($fakePath) . '.bak');
+                $this->files->ensureDirectoryExists(dirname($backup));
+                $this->files->put($backup, (string)$this->files->get($fakePath));
+                $this->files->put($fakePath, $fakeCode);
+                $manifest->trackUpdate($this->rel($fakePath), $backup);
+            } else {
+                $this->files->put($fakePath, $fakeCode);
+                $manifest->trackCreate($this->rel($fakePath));
+            }
+
+            $this->twoColumn('Fake', $this->rel($fakePath));
         }
 
         if (!$noTest) {
@@ -149,16 +174,25 @@ final class MakeContractCommand extends BaseCommand
                 'testImplements' => $testImplements,
             ];
 
-            if (!$dry) {
-                if (!is_dir($testsDir)) {
-                    $fs->ensureDirectoryExists($testsDir);
-                    $manifest->trackMkdir($this->rel($testsDir));
-                }
-                if ($force || !is_file($testPath)) {
-                    $test = $renderer->render('ddd-lite/contract-test.stub', $testVars);
-                    $fs->put($testPath, $test);
-                    $manifest->trackCreate($this->rel($testPath));
-                }
+            if (!is_dir($testsDir)) {
+                $this->files->ensureDirectoryExists($testsDir);
+                $manifest->trackMkdir($this->rel($testsDir));
+            }
+
+            $testCode = $this->render('ddd-lite/contract-test.stub', $testVars);
+            $testExists = $this->files->exists($testPath);
+
+            if ($testExists && !$force) {
+                $this->twoColumn('Test skipped', 'exists (use --force to overwrite)');
+            } elseif ($testExists) {
+                $backup = storage_path('app/ddd-lite_scaffold/backups/' . sha1($testPath) . '.bak');
+                $this->files->ensureDirectoryExists(dirname($backup));
+                $this->files->put($backup, (string)$this->files->get($testPath));
+                $this->files->put($testPath, $testCode);
+                $manifest->trackUpdate($this->rel($testPath), $backup);
+            } else {
+                $this->files->put($testPath, $testCode);
+                $manifest->trackCreate($this->rel($testPath));
             }
 
             $this->twoColumn('Test', $this->rel($testPath));
@@ -166,6 +200,7 @@ final class MakeContractCommand extends BaseCommand
 
         $manifest->save();
         $this->info('Contract scaffold complete. Manifest: ' . $manifest->id());
+
         return self::SUCCESS;
     }
 
@@ -344,8 +379,8 @@ final class MakeContractCommand extends BaseCommand
             $retStmt = $this->fakeReturn($m['returns']);
             $lines[] = '    public function ' . $name . '(' . $params . '): ' . $returns . PHP_EOL
                 . '    {' . PHP_EOL
-                . '        ' . $retStmt . PHP_EOL
-                . '    }';
+                . ($retStmt !== '' ? '        ' . $retStmt . PHP_EOL : '') .
+                '    }';
         }
         return implode(PHP_EOL . PHP_EOL, $lines) . PHP_EOL;
     }

@@ -232,6 +232,51 @@ final readonly class AppBootstrapEditor
         $this->fs->put($path, $updated);
     }
 
+    public function ensureProviderInsideConfigure(string $code, string $fqcn): string
+    {
+        if (str_contains($code, $fqcn)) {
+            return $code;
+        }
+
+        $configurePos = strpos($code, 'Application::configure(');
+        if ($configurePos === false) {
+            return $code;
+        }
+
+        $createPos = strpos($code, '->create(', $configurePos);
+        if ($createPos === false) {
+            return $code;
+        }
+
+        $segment = substr($code, $configurePos, $createPos - $configurePos);
+
+        if (str_contains($segment, '->withProviders(')) {
+            $insertPos = strpos($segment, '->withProviders(');
+            if ($insertPos === false) {
+                return $code;
+            }
+
+            $start = $configurePos + $insertPos;
+            $open = strpos($code, '[', $start);
+            $close = strpos($code, ']', $open);
+            if ($open === false || $close === false) {
+                return $code;
+            }
+
+            $before = substr($code, 0, $open + 1);
+            $inside = substr($code, $open + 1, $close - $open - 1);
+            $after = substr($code, $close);
+
+            $trim = trim($inside);
+            $comma = $trim === '' ? '' : ',';
+            $injected = $trim . $comma . PHP_EOL . '        ' . $fqcn . '::class,' . PHP_EOL . '    ';
+
+            return $before . $injected . $after;
+        }
+
+        $injection = '    ->withProviders([' . PHP_EOL . '        ' . $fqcn . '::class,' . PHP_EOL . '    ])' . PHP_EOL;
+        return substr($code, 0, $createPos) . $injection . substr($code, $createPos);
+    }
 
     /**
      * Find the index of the matching ')' for the '(' at $openPos.

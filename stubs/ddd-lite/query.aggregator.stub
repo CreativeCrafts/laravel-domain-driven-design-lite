@@ -1,0 +1,21 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Modules\{{ module }}\Domain\Aggregators;
+
+final class {{ class }}
+{
+    public static function fromQueries(object ...$queries): self
+    {
+        return new self();
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function toArray(): array
+    {
+        return [];
+    }
+}

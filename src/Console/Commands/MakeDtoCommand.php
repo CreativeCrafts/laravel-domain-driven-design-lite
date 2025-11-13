@@ -4,10 +4,8 @@ declare(strict_types=1);
 
 namespace CreativeCrafts\DomainDrivenDesignLite\Console\Commands;
 
-use CreativeCrafts\DomainDrivenDesignLite\Support\Manifest;
-use CreativeCrafts\DomainDrivenDesignLite\Support\StubRenderer;
+use CreativeCrafts\DomainDrivenDesignLite\Console\BaseCommand;
 use Illuminate\Contracts\Filesystem\FileNotFoundException;
-use Illuminate\Filesystem\Filesystem;
 use Illuminate\Support\Str;
 use JsonException;
 use Random\RandomException;
@@ -20,7 +18,7 @@ final class MakeDtoCommand extends BaseCommand
         {module : Module name in PascalCase}
         {name : DTO class name (e.g. TripData)}
         {--in= : Optional subnamespace inside Domain/DTO, e.g. Trip}
-        {--props= : Comma-separated list of properties: name:type[|nullable] (e.g. id:Ulid,name:string|nullable,age:int)}
+        {--props= : Comma-separated properties: name:type[|nullable] (e.g. id:Ulid,name:string|nullable,age:int)}
         {--readonly : Force readonly class (default: true)}
         {--no-test : Do not create a test}
         {--dry-run : Preview without writing}
@@ -42,7 +40,8 @@ final class MakeDtoCommand extends BaseCommand
         if ($rollback !== '') {
             $m = $this->loadManifestOrFail($rollback);
             $m->rollback();
-            $this->info("Rollback complete for {$rollback}.");
+            // UX polish: success box, but keep existing intent & exit code
+            $this->successBox("Rollback complete for {$rollback}.");
             return self::SUCCESS;
         }
 
@@ -54,11 +53,8 @@ final class MakeDtoCommand extends BaseCommand
         $dry = $this->option('dry-run') === true;
         $force = $this->option('force') === true;
 
-        $fs = app(Filesystem::class);
-        $manifest = Manifest::begin($fs);
-
         $moduleRoot = base_path("modules/{$module}");
-        if (!is_dir($moduleRoot)) {
+        if (!$dry && !is_dir($moduleRoot)) {
             throw new RuntimeException("Module not found: {$module}");
         }
 
@@ -73,14 +69,12 @@ final class MakeDtoCommand extends BaseCommand
             : '\\' . str_replace('/', '\\', str_replace('\\', '/', $suffixPath));
 
         $props = $this->parseProps($propsOpt);
-
         $imports = $this->collectImports($props);
         $importsBlock = $imports === [] ? '' : implode(PHP_EOL, $imports) . PHP_EOL;
 
         $ctorParams = $this->buildCtorParams($props);
         $getters = $this->buildGetters($props);
 
-        $renderer = app(StubRenderer::class);
         $stubVars = [
             'module' => $module,
             'namespaceSuffix' => $namespaceSuffix,
@@ -90,23 +84,51 @@ final class MakeDtoCommand extends BaseCommand
             'getters' => $getters,
         ];
 
-        $this->twoColumn('Module', $module);
-        $this->twoColumn('DTO', $class);
-        $this->twoColumn('Path', $this->rel($phpPath));
-        $this->twoColumn('Dry run', $dry ? 'yes' : 'no');
+        $this->summary('DTO scaffold plan', [
+            'Module' => $module,
+            'DTO' => $class,
+            'Subpath' => $suffixPath !== '' ? $suffixPath : '(none)',
+            'Props' => $propsOpt !== '' ? $propsOpt : '(none)',
+            'Target' => $this->rel($phpPath),
+            'Mode' => $dry ? 'dry-run' : 'apply',
+            'Force' => $force ? 'yes' : 'no',
+            'Tests' => $noTest ? 'skipped' : 'generate',
+        ]);
 
-        if (!$dry) {
-            if (!is_dir($dtoDir)) {
-                $fs->ensureDirectoryExists($dtoDir);
-                $manifest->trackMkdir($this->rel($dtoDir));
+        $code = $this->render('ddd-lite/dto.stub', $stubVars);
+
+        if ($dry) {
+            $this->successBox('Preview complete. No changes written.');
+            return self::SUCCESS;
+        }
+
+        $manifest = $this->beginManifest();
+
+        if (!is_dir($dtoDir)) {
+            $this->files->ensureDirectoryExists($dtoDir);
+            $manifest->trackMkdir($this->rel($dtoDir));
+        }
+
+        $exists = $this->files->exists($phpPath);
+
+        if ($exists && !$force) {
+            $current = (string)$this->files->get($phpPath);
+            if ($current === $code) {
+                $this->successBox('No changes detected. File already matches generated output.');
+                return self::SUCCESS;
             }
+            $this->error('File already exists. Use --force to overwrite.');
+            return self::FAILURE;
+        }
 
-            if (!$force && is_file($phpPath)) {
-                throw new RuntimeException('File already exists: ' . $this->rel($phpPath) . ' (use --force to overwrite)');
-            }
-
-            $code = $renderer->render('ddd-lite/dto.stub', $stubVars);
-            $fs->put($phpPath, $code);
+        if ($exists) {
+            $backup = storage_path('app/ddd-lite_scaffold/backups/' . sha1($phpPath) . '.bak');
+            $this->files->ensureDirectoryExists(dirname($backup));
+            $this->files->put($backup, (string)$this->files->get($phpPath));
+            $this->files->put($phpPath, $code);
+            $manifest->trackUpdate($this->rel($phpPath), $backup);
+        } else {
+            $this->files->put($phpPath, $code);
             $manifest->trackCreate($this->rel($phpPath));
         }
 
@@ -129,24 +151,35 @@ final class MakeDtoCommand extends BaseCommand
                 'ctorAsserts' => $ctorAsserts,
             ];
 
-            if (!$dry) {
-                if (!is_dir($testsDir)) {
-                    $fs->ensureDirectoryExists($testsDir);
-                    $manifest->trackMkdir($this->rel($testsDir));
-                }
+            if (!is_dir($testsDir)) {
+                $this->files->ensureDirectoryExists($testsDir);
+                $manifest->trackMkdir($this->rel($testsDir));
+            }
 
-                if ($force && !is_file($testPath)) {
-                    $test = $renderer->render('ddd-lite/dto-test.stub', $testVars);
-                    $fs->put($testPath, $test);
-                    $manifest->trackCreate($this->rel($testPath));
-                }
+            $testCode = $this->render('ddd-lite/dto-test.stub', $testVars);
+            $testExists = $this->files->exists($testPath);
+
+            if ($testExists && !$force) {
+                $this->twoColumn('Test skipped', 'exists (use --force to overwrite)');
+            } elseif ($testExists) {
+                $backup = storage_path('app/ddd-lite_scaffold/backups/' . sha1($testPath) . '.bak');
+                $this->files->ensureDirectoryExists(dirname($backup));
+                $this->files->put($backup, (string)$this->files->get($testPath));
+                $this->files->put($testPath, $testCode);
+                $manifest->trackUpdate($this->rel($testPath), $backup);
+            } else {
+                $this->files->put($testPath, $testCode);
+                $manifest->trackCreate($this->rel($testPath));
             }
 
             $this->twoColumn('Test', $this->rel($testPath));
         }
 
         $manifest->save();
+
         $this->info('DTO scaffold complete. Manifest: ' . $manifest->id());
+        $this->successBox('DTO created successfully.');
+
         return self::SUCCESS;
     }
 

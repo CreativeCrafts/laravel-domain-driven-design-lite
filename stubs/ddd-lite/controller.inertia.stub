@@ -1,0 +1,48 @@
+<?php
+
+declare(strict_types=1);
+
+namespace {{ namespace }};
+
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Inertia\Inertia;
+use Inertia\Response;
+
+final class {{ class }}
+{
+    public function index(Request $request): Response
+    {
+        return Inertia::render('{{ inertia_page_index }}');
+    }
+
+    public function create(Request $request): Response
+    {
+        return Inertia::render('{{ inertia_page_create }}');
+    }
+
+    public function store(Request $request): RedirectResponse
+    {
+        return redirect()->back();
+    }
+
+    public function show(string $id): Response
+    {
+        return Inertia::render('{{ inertia_page_show }}');
+    }
+
+    public function edit(string $id): Response
+    {
+        return Inertia::render('{{ inertia_page_edit }}');
+    }
+
+    public function update(Request $request, string $id): RedirectResponse
+    {
+        return redirect()->back();
+    }
+
+    public function destroy(string $id): RedirectResponse
+    {
+        return redirect()->back();
+    }
+}

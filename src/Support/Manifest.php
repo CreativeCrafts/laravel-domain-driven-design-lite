@@ -10,51 +10,66 @@ use JsonException;
 use Random\RandomException;
 use RuntimeException;
 
-/**
- * Records all file and directory operations for rollback.
- * A manifest JSON is written to storage/app/ddd-lite_scaffold/{id}.json
- */
 final class Manifest
 {
-    public function __construct(
-        private readonly Filesystem $fs,
-        private readonly string $id,
-        private array $entries = []
-    ) {
-    }
+    /**
+     * Storage directory (relative to storage_path()) for manifest files.
+     */
+    private const string DIR = 'app/ddd-lite_scaffold/manifests';
+
+    /**
+     * Unique manifest identifier.
+     */
+    private string $id;
+
+    /**
+     * Canonical list of atomic actions recorded by generators/fixers.
+     *
+     * @var array<int, array{type:string, path:string, backup:?string, to?:string}>
+     */
+    private array $actions = [];
 
     /**
      * @throws RandomException
      */
-    public static function begin(Filesystem $fs): self
-    {
-        $id = now()->format('YmdHis') . '_' . bin2hex(random_bytes(3));
-        return new self($fs, $id);
+    public function __construct(
+        private readonly Filesystem $fs,
+        ?string $id = null,
+    ) {
+        $this->id = $id ?? bin2hex(random_bytes(8));
     }
 
     /**
+     * Factory: begin a new manifest (kept for full backward compatibility).
+     *
+     * @throws RandomException
+     */
+    public static function begin(Filesystem $fs): self
+    {
+        return new self($fs);
+    }
+
+    /**
+     * Load an existing manifest by id.
+     *
      * @throws FileNotFoundException
+     * @throws RandomException
      * @throws JsonException
      */
-    public static function load(Filesystem $fs, string $id): ?self
+    public static function load(Filesystem $fs, string $id): self
     {
-        $path = storage_path("app/ddd-lite_scaffold/{$id}.json");
+        $path = storage_path(self::DIR . '/' . $id . '.json');
         if (!$fs->exists($path)) {
-            return null;
+            throw new RuntimeException('Manifest not found: ' . $path);
         }
 
-        $raw = (string)$fs->get($path);
+        /** @var array{id:string,actions:array<int, array{type:string, path:string, backup:?string, to?:string}>} $data */
+        $data = json_decode((string)$fs->get($path), true, 512, JSON_THROW_ON_ERROR);
 
-        $data = json_decode($raw, true, 512, JSON_THROW_ON_ERROR);
-        if (!is_array($data)) {
-            // Corrupt or old file; return minimal manifest so rollback doesn't fatal
-            return new self($fs, $id, []);
-        }
+        $m = new self($fs, $data['id']);
+        $m->actions = $data['actions'];
 
-        $loadedId = isset($data['id']) && is_string($data['id']) ? $data['id'] : $id;
-        $entries = isset($data['entries']) && is_array($data['entries']) ? $data['entries'] : [];
-
-        return new self($fs, $loadedId, $entries);
+        return $m;
     }
 
     public function id(): string
@@ -62,168 +77,179 @@ final class Manifest
         return $this->id;
     }
 
-    /** Track that we created a brand-new file. */
     public function trackCreate(string $relativePath): void
     {
-        $this->entries[] = [
+        $this->actions[] = [
             'type' => 'create',
             'path' => $relativePath,
+            'backup' => null,
         ];
     }
 
-    /** Track that we overwrote a file and saved a backup. */
-    public function trackUpdate(string $relativePath, string $backupAbsolutePath): void
+    public function trackUpdate(string $relativePath, string $backupAbsPath): void
     {
-        $this->entries[] = [
+        $this->actions[] = [
             'type' => 'update',
             'path' => $relativePath,
-            'backup' => $backupAbsolutePath,
+            'backup' => $backupAbsPath,
         ];
     }
 
-    /** Track that we created a directory (so we can delete it recursively on rollback). */
-    public function trackMkdir(string $relativePath): void
+    public function trackMkdir(string $relativeDir): void
     {
-        $this->entries[] = [
+        $this->actions[] = [
             'type' => 'mkdir',
-            'path' => $relativePath,
+            'path' => rtrim($relativeDir, DIRECTORY_SEPARATOR),
+            'backup' => null,
         ];
     }
 
-    /** Track a rename so rollback can move it back. */
-    public function trackRename(string $fromRelative, string $toRelative): void
+    public function trackDelete(string $relativePath): void
     {
-        $this->entries[] = [
-            'type' => 'rename',
-            'from' => $fromRelative,
+        $this->actions[] = [
+            'type' => 'delete',
+            'path' => $relativePath,
+            'backup' => null,
+        ];
+    }
+
+    public function trackMove(string $fromRelative, string $toRelative): void
+    {
+        $this->actions[] = [
+            'type' => 'move',
+            'path' => $fromRelative,
+            'backup' => null,
             'to' => $toRelative,
         ];
     }
 
-    /** Track a composer.json PSR-4 patch (so we can restore the file). */
-    public function trackComposerPatch(array $before, array $after): void
-    {
-        $this->entries[] = [
-            'type' => 'composer_psr4',
-            'before' => $before,
-            'after' => $after,
-        ];
-    }
-
     /**
+     * Persist manifest to disk (canonical format).
+     *
      * @throws JsonException
      */
     public function save(): void
     {
-        $this->fs->ensureDirectoryExists(storage_path('app/ddd-lite_scaffold'));
+        $dir = storage_path(self::DIR);
+        $this->fs->ensureDirectoryExists($dir);
+
+        $payload = [
+            'id' => $this->id,
+            'actions' => $this->actions,
+            'created_at' => date(DATE_ATOM),
+            'format' => 'canonical',
+        ];
+
         $this->fs->put(
-            storage_path("app/ddd-lite_scaffold/{$this->id}.json"),
-            json_encode(['id' => $this->id, 'entries' => $this->entries], JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES)
+            $this->path(),
+            json_encode($payload, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR)
         );
     }
 
     /**
-     * Reverts all tracked changes in reverse order.
-     * - Deletes created files
-     * - Restores updated files from backup
-     * - Deletes created directories recursively
-     * - Reverses renames (to <- from)
-     * - Restores composer.json to 'before'
+     * Reverse the recorded actions in strict LIFO order and remove the manifest file.
      *
-     * @throws JsonException
+     * @throws FileNotFoundException
      */
     public function rollback(): void
     {
-        foreach (array_reverse($this->entries) as $entry) {
-            $type = $entry['type'] ?? '';
-            switch ($type) {
-                case 'create':
-                {
-                    $pathRel = (string)($entry['path'] ?? '');
-                    if ($pathRel !== '') {
-                        $abs = base_path($pathRel);
-                        if (is_file($abs)) {
-                            @unlink($abs);
-                        }
-                    }
-                    break;
-                }
+        // Reverse in LIFO to undo in the correct order.
+        foreach (array_reverse($this->actions) as $action) {
+            $type = $action['type'];
+            $rel = $action['path'];
+            $abs = base_path($rel);
 
-                case 'update':
-                {
-                    $pathRel = (string)($entry['path'] ?? '');
-                    $backup = (string)($entry['backup'] ?? '');
-                    if ($pathRel !== '') {
-                        $abs = base_path($pathRel);
-                        if ($backup !== '' && is_file($backup)) {
-                            @copy($backup, $abs);
-                            @unlink($backup);
-                        }
-                    }
-                    break;
+            if ($type === 'update') {
+                $backup = $action['backup'];
+                if (is_string($backup) && $this->fs->exists($backup)) {
+                    $this->fs->ensureDirectoryExists(dirname($abs));
+                    $this->fs->put($abs, (string)$this->fs->get($backup));
                 }
-
-                case 'mkdir':
-                {
-                    $pathRel = (string)($entry['path'] ?? '');
-                    if ($pathRel !== '') {
-                        $absDir = base_path($pathRel);
-                        if (is_dir($absDir)) {
-                            $this->removeDirectoryRecursive($absDir);
-                        }
-                    }
-                    break;
+            } elseif ($type === 'create') {
+                if ($this->fs->exists($abs)) {
+                    $this->fs->delete($abs);
                 }
-
-                case 'rename':
-                {
-                    $fromRel = (string)($entry['from'] ?? '');
-                    $toRel = (string)($entry['to'] ?? '');
-                    if ($fromRel !== '' && $toRel !== '') {
-                        $absFrom = base_path($fromRel);
-                        $absTo = base_path($toRel);
-                        if (file_exists($absTo) || is_dir($absTo)) {
-                            if (!mkdir($concurrentDirectory = dirname($absFrom), 0777, true) && !is_dir($concurrentDirectory)) {
-                                throw new RuntimeException(sprintf('Directory "%s" was not created', $concurrentDirectory));
-                            }
-                            @rename($absTo, $absFrom);
-                        }
-                    }
-                    break;
+            } elseif ($type === 'mkdir') {
+                // Remove only if empty to avoid harming unrelated files.
+                if (is_dir($abs) && $this->isDirEmpty($abs)) {
+                    $this->fs->deleteDirectory($abs);
                 }
-
-                case 'composer_psr4':
-                {
-                    $composer = base_path('composer.json');
-                    if (is_file($composer)) {
-                        $before = $entry['before'] ?? null;
-                        if (is_array($before)) {
-                            file_put_contents(
-                                $composer,
-                                json_encode($before, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . PHP_EOL
-                            );
-                        }
+            } elseif ($type === 'delete') {
+                // No-op by design.
+            } elseif ($type === 'move') {
+                // Move back: to → from
+                $toRel = $action['to'] ?? null;
+                if (is_string($toRel)) {
+                    $fromAbs = $abs;            // stored as 'path'
+                    $toAbs = base_path($toRel); // destination we moved to
+                    if (is_file($toAbs) && !is_file($fromAbs)) {
+                        $this->fs->ensureDirectoryExists(dirname($fromAbs));
+                        $this->fs->move($toAbs, $fromAbs);
                     }
-                    break;
                 }
             }
         }
+
+        // --- Final safety pass: prune all empty directories related to this manifest ---
+        // Collect candidate directories from mkdirs and from parent dirs of all touched paths.
+        $candidates = [];
+
+        foreach ($this->actions as $a) {
+            $pathAbs = base_path($a['path']);
+            // If we explicitly created a directory, include it.
+            if ($a['type'] === 'mkdir') {
+                $candidates[] = $pathAbs;
+            }
+            // Include the parent directory of any file path.
+            $candidates[] = dirname($pathAbs);
+
+            // For moves, include parent dirs of both "from" and "to".
+            if ($a['type'] === 'move' && isset($a['to']) && is_string($a['to'])) {
+                $candidates[] = dirname(base_path($a['to']));
+            }
+        }
+
+        // Deduplicate and sort deepest-first, so children are pruned before parents.
+        $candidates = array_values(array_unique(array_filter($candidates, static fn ($p) => is_string($p))));
+        usort($candidates, static fn (string $a, string $b) => strlen($b) <=> strlen($a));
+
+        foreach ($candidates as $dir) {
+            if (is_dir($dir) && $this->isTreeEmpty($dir)) {
+                $this->fs->deleteDirectory($dir);
+            }
+        }
+
+        // Remove the manifest file itself.
+        $this->fs->delete($this->path());
     }
 
-    private function removeDirectoryRecursive(string $dir): void
+    private function path(): string
     {
-        $items = @scandir($dir) ?: [];
-        foreach ($items as $item) {
-            if ($item === '.' || $item === '..') {
-                continue;
-            }
-            $path = $dir . DIRECTORY_SEPARATOR . $item;
-            if (is_dir($path)) {
-                $this->removeDirectoryRecursive($path);
-            } else {
-                @unlink($path);
+        return storage_path(self::DIR . '/' . $this->id . '.json');
+    }
+
+    private function isDirEmpty(string $dir): bool
+    {
+        $scan = array_values(array_diff(scandir($dir) ?: [], ['.', '..']));
+        return $scan === [];
+    }
+
+    /**
+     * True if there are no files anywhere under the directory (subdirs allowed but must be empty).
+     */
+    private function isTreeEmpty(string $dir): bool
+    {
+        // If there are any files at any depth, it's not safe to remove.
+        $files = $this->fs->allFiles($dir);
+        if (!empty($files)) {
+            return false;
+        }
+        // If there are subdirectories, ensure they are also file-empty.
+        foreach ($this->fs->directories($dir) as $sub) {
+            if (!$this->isTreeEmpty($sub)) {
+                return false;
             }
         }
-        @rmdir($dir);
+        return true;
     }
 }
