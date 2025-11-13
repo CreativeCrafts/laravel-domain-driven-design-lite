@@ -10,6 +10,7 @@ use Illuminate\Contracts\Filesystem\FileNotFoundException;
 use Illuminate\Support\Str;
 use JsonException;
 use RuntimeException;
+use SplFileInfo;
 
 final class DoctorCiCommand extends BaseCommand
 {
@@ -102,7 +103,7 @@ final class DoctorCiCommand extends BaseCommand
 
         foreach ($paths as $p) {
             if (is_dir($p)) {
-                /** @var iterable<int, string>|iterable<int, \SplFileInfo> $phpFiles */
+                /** @var iterable<int, string>|iterable<int, SplFileInfo> $phpFiles */
                 $phpFiles = $fs->allFiles($p, true);
 
                 foreach ($phpFiles as $fileInfo) {

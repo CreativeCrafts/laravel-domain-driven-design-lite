@@ -111,7 +111,9 @@ it('supports rollback by manifest id', function (): void {
     $manifestId = null;
     foreach ($files as $file) {
         $data = json_decode((string)file_get_contents($file), true);
-        if (!is_array($data)) { continue; }
+        if (!is_array($data)) {
+        continue;
+        }
         foreach (($data['actions'] ?? $data['ops'] ?? []) as $action) {
             $p = $action['path'] ?? $action['target'] ?? null;
             if ($p === $rel) {
