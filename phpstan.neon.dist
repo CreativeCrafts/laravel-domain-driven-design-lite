@@ -9,8 +9,8 @@ parameters:
     excludePaths:
         - vendor
         - stubs
-        - build
-        - .phpunit.cache
+        - build (?)
+        - .phpunit.cache (?)
 
     ignoreErrors:
         - '#call to deprecated function#i'
