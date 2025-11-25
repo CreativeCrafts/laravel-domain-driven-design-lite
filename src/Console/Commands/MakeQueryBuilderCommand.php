@@ -32,8 +32,8 @@ final class MakeQueryBuilderCommand extends BaseCommand
     {
         $this->prepare();
 
-        if (is_string($this->option('rollback')) && $this->option('rollback') !== '') {
-            $id = (string)$this->option('rollback');
+        $id = $this->getStringOption('rollback');
+        if ($id !== null) {
             $manifest = $this->loadManifestOrFail($id);
             $manifest->rollback();
             $this->components->info("Rolled back manifest: {$id}");
@@ -41,12 +41,12 @@ final class MakeQueryBuilderCommand extends BaseCommand
             return self::SUCCESS;
         }
 
-        $module = Str::studly((string)$this->argument('module'));
+        $module = Str::studly($this->getStringArgument('module'));
         if ($module === '') {
             throw new RuntimeException('Module is required.');
         }
 
-        $base = Str::studly((string)$this->argument('name'));
+        $base = Str::studly($this->getStringArgument('name'));
         if ($base === '') {
             throw new RuntimeException('Name is required.');
         }

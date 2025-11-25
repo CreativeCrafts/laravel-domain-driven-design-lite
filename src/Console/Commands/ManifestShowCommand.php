@@ -32,7 +32,7 @@ final class ManifestShowCommand extends BaseCommand
     {
         $this->prepare();
 
-        $id = (string)$this->argument('id');
+        $id = $this->getStringArgument('id');
         if ($id === '') {
             throw new RuntimeException('Missing manifest id.');
         }

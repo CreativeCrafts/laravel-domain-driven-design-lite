@@ -38,21 +38,21 @@ final class MakeActionCommand extends BaseCommand
     {
         $this->prepare();
 
-        $rollback = (string)($this->option('rollback') ?? '');
-        if ($rollback !== '') {
+        $rollback = $this->getStringOption('rollback');
+        if ($rollback !== null) {
             $m = $this->loadManifestOrFail($rollback);
             $m->rollback();
             $this->info("Rollback complete for {$rollback}.");
             return self::SUCCESS;
         }
 
-        $module = Str::studly((string)$this->argument('module'));
-        $base = Str::studly((string)$this->argument('name'));
-        $suffixPath = trim((string)($this->option('in') ?? ''), '/\\');
-        $method = (string)($this->option('method') ?? '__invoke');
-        $inputOpt = (string)($this->option('input') ?? '');
-        $paramName = (string)($this->option('param') ?? 'id');
-        $returnsOpt = (string)($this->option('returns') ?? 'void');
+        $module = Str::studly($this->getStringArgument('module'));
+        $base = Str::studly($this->getStringArgument('name'));
+        $suffixPath = trim($this->getStringOption('in') ?? '', '/\\');
+        $method = $this->getStringOption('method') ?? '__invoke';
+        $inputOpt = $this->getStringOption('input') ?? '';
+        $paramName = $this->getStringOption('param') ?? 'id';
+        $returnsOpt = $this->getStringOption('returns') ?? 'void';
         $noTest = $this->option('no-test') === true;
         $dry = $this->option('dry-run') === true;
         $force = $this->option('force') === true;

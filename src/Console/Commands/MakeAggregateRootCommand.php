@@ -11,6 +11,7 @@ use JsonException;
 use Random\RandomException;
 use RuntimeException;
 use Throwable;
+use function dirname;
 
 final class MakeAggregateRootCommand extends BaseCommand
 {
@@ -34,24 +35,25 @@ final class MakeAggregateRootCommand extends BaseCommand
         $this->prepare();
 
         // 1. Rollback branch
-        $rollbackOpt = $this->option('rollback');
-        if (is_string($rollbackOpt) && $rollbackOpt !== '') {
+        $rollbackOpt = $this->getStringOption('rollback');
+        if ($rollbackOpt !== null) {
             $m = $this->loadManifestOrFail($rollbackOpt);
             $m->rollback();
             $this->info('Rollback complete: ' . $rollbackOpt);
             $this->successBox('Rollback completed successfully.');
+
             return self::SUCCESS;
         }
 
         // 2. Gather and normalize inputs
-        $module = Str::studly((string)$this->argument('module'));
-        $name = Str::studly((string)$this->argument('name'));
+        $module = Str::studly($this->getStringArgument('module'));
+        $name = Str::studly($this->getStringArgument('name'));
         $dry = $this->option('dry-run') === true;
         $force = $this->option('force') === true;
 
         $moduleRoot = base_path("modules/{$module}");
         if (!is_dir($moduleRoot)) {
-            throw new RuntimeException("Module not found: {$module}. Did you run ddd-lite:module:scaffold?");
+            throw new RuntimeException("Module not found: {$module}. Did you run ddd-lite:module?");
         }
 
         $aggregatesRootRel = "modules/{$module}/Domain/Aggregates";
@@ -104,6 +106,7 @@ final class MakeAggregateRootCommand extends BaseCommand
             }
 
             $exists = $this->files->exists($aggregateFileAbs);
+            $fileRel = $this->rel($aggregateFileAbs);
 
             if ($exists && !$force) {
                 $current = (string)$this->files->get($aggregateFileAbs);
@@ -118,21 +121,24 @@ final class MakeAggregateRootCommand extends BaseCommand
             }
 
             if ($exists) {
-                $backup = storage_path('app/ddd-lite_scaffold/backups/' . sha1($aggregateFileAbs) . '.bak');
-                $this->files->ensureDirectoryExists(dirname($backup));
-                $this->files->put($backup, (string)$this->files->get($aggregateFileAbs));
+                // Backup path is based on the RELATIVE path, to match tests and other commands.
+                $backupRel = 'storage/app/ddd-lite_scaffold/backups/' . sha1($fileRel) . '.bak';
+                $backupAbs = base_path($backupRel);
+
+                $this->files->ensureDirectoryExists(dirname($backupAbs));
+                $this->files->put($backupAbs, (string)$this->files->get($aggregateFileAbs));
                 $this->files->put($aggregateFileAbs, $code);
 
-                $manifest->trackUpdate($this->rel($aggregateFileAbs), $this->rel($backup));
+                $manifest->trackUpdate($fileRel, $backupRel);
             } else {
                 $this->files->put($aggregateFileAbs, $code);
-                $manifest->trackCreate($this->rel($aggregateFileAbs));
+                $manifest->trackCreate($fileRel);
             }
 
             $manifest->save();
 
             $this->successBox("Aggregate Root {$name} created in module {$module}.");
-            $this->line('Path: ' . $this->rel($aggregateFileRel));
+            $this->line('Path: ' . $aggregateFileRel);
             $this->line('Manifest: ' . $manifest->id());
 
             return self::SUCCESS;

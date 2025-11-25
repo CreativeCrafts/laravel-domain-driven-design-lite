@@ -32,16 +32,16 @@ final class MakeRepositoryCommand extends BaseCommand
     {
         $this->prepare();
 
-        $rollback = (string)($this->option('rollback') ?? '');
-        if ($rollback !== '') {
+        $rollback = $this->getStringOption('rollback');
+        if ($rollback !== null) {
             $m = $this->loadManifestOrFail($rollback);
             $m->rollback();
             $this->info('Rollback complete: ' . $rollback);
             return self::SUCCESS;
         }
 
-        $module = Str::studly((string)$this->argument('module'));
-        $aggregate = Str::studly((string)$this->argument('aggregate'));
+        $module = Str::studly($this->getStringArgument('module'));
+        $aggregate = Str::studly($this->getStringArgument('aggregate'));
 
         if ($module === '' || $aggregate === '') {
             $this->error('Arguments "module" and "aggregate" are required.');

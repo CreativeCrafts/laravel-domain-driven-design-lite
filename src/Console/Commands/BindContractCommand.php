@@ -33,17 +33,17 @@ final class BindContractCommand extends BaseCommand
     {
         $this->prepare();
 
-        $rollback = (string)($this->option('rollback') ?? '');
-        if ($rollback !== '') {
+        $rollback = $this->getStringOption('rollback');
+        if ($rollback !== null) {
             $m = $this->loadManifestOrFail($rollback);
             $m->rollback();
             $this->info("Rollback complete for {$rollback}.");
             return self::SUCCESS;
         }
 
-        $module = Str::studly((string)$this->argument('module'));
-        $contractArg = (string)$this->argument('contract');
-        $implArg = (string)($this->argument('implementation') ?? '');
+        $module = Str::studly($this->getStringArgument('module'));
+        $contractArg = $this->getStringArgument('contract');
+        $implArg = is_string($this->argument('implementation')) ? (string)$this->argument('implementation') : '';
         $dry = $this->option('dry-run') === true;
         $force = $this->option('force') === true;
 

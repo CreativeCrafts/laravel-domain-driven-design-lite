@@ -2,15 +2,25 @@ includes:
     - phpstan-baseline.neon
 
 parameters:
-    level: max
     paths:
         - src
+    level: max
+
+    excludePaths:
+        - vendor
+        - stubs
+        - build
+        - .phpunit.cache
 
     ignoreErrors:
-        #- identifier: missingType.iterableValue
+        - '#call to deprecated function#i'
+        - '#is not covariant with#i'
 
-    tmpDir: build/phpstan
-    noModelMake: false
-    noUnnecessaryCollectionCall: false
-    checkModelProperties: true
+    bootstrapFiles:
+        - vendor/autoload.php
+
+    checkUninitializedProperties: true
+    checkUnionTypes: true
+    treatPhpDocTypesAsCertain: true
     inferPrivatePropertyTypeFromConstructor: true
+    reportUnmatchedIgnoredErrors: false

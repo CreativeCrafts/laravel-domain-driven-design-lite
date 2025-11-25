@@ -30,7 +30,8 @@ final class DoctorCiCommand extends BaseCommand
         $this->prepare();
 
         // Default policy: fail CI when there is at least one "error" severity issue.
-        $failOn = strtolower((string)($this->option('fail-on') ?? 'error'));
+        $failOnOpt = $this->getStringOption('fail-on') ?? 'error';
+        $failOn = strtolower($failOnOpt);
         if (!in_array($failOn, ['none', 'any', 'error'], true)) {
             throw new RuntimeException('Invalid --fail-on value. Use: none|any|error.');
         }
@@ -271,7 +272,8 @@ final class DoctorCiCommand extends BaseCommand
      */
     private function csvOption(bool $allowRelative = false): array
     {
-        $raw = (string)($this->option('paths') ?? '');
+        $opt = $this->option('paths');
+        $raw = is_string($opt) ? $opt : '';
 
         if ($raw === '') {
             return [];

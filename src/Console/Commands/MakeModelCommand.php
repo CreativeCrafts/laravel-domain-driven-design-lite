@@ -36,29 +36,21 @@ final class MakeModelCommand extends BaseCommand
     {
         $this->prepare();
 
-        $rollback = (string)($this->option('rollback') ?? '');
-        if ($rollback !== '') {
+        $rollback = $this->getStringOption('rollback');
+        if ($rollback !== null) {
             $m = $this->loadManifestOrFail($rollback);
             $m->rollback();
             $this->info('Rollback complete: ' . $rollback);
             return self::SUCCESS;
         }
 
-        $moduleArg = $this->argument('module');
-        $nameArg = $this->argument('name');
-
-        if ($moduleArg === null || $nameArg === null) {
-            $this->error('Arguments "module" and "name" are required unless using --rollback.');
-            return self::FAILURE;
-        }
-
-        $module = Str::studly((string)$moduleArg);
-        $name = Str::studly((string)$nameArg);
+        $module = Str::studly($this->getStringArgument('module'));
+        $name = Str::studly($this->getStringArgument('name'));
         $force = $this->option('force') === true;
         $dry = $this->option('dry-run') === true;
 
-        $fillableOpt = trim((string)($this->option('fillable') ?? ''));
-        $guardedOpt = trim((string)($this->option('guarded') ?? ''));
+        $fillableOpt = trim($this->getStringOption('fillable') ?? '');
+        $guardedOpt = trim($this->getStringOption('guarded') ?? '');
         if ($fillableOpt !== '' && $guardedOpt !== '') {
             $this->error('Use either --fillable or --guarded, not both.');
             return self::FAILURE;
@@ -76,10 +68,8 @@ final class MakeModelCommand extends BaseCommand
         $dir = "{$moduleRoot}/App/Models";
         $path = "{$dir}/{$name}.php";
 
-        $table = (string)($this->option('table') ?? '');
-        if ($table === '') {
-            $table = Str::snake(Str::pluralStudly($name));
-        }
+        $tableOpt = $this->getStringOption('table') ?? '';
+        $table = $tableOpt !== '' ? $tableOpt : Str::snake(Str::pluralStudly($name));
 
         $this->twoColumn('Module', $module);
         $this->twoColumn('Class', "{$ns}\\{$name}");

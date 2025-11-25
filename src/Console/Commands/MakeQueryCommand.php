@@ -33,13 +33,13 @@ final class MakeQueryCommand extends BaseCommand
     {
         $this->prepare();
 
-        $module = Str::studly((string)$this->argument('module'));
-        $name = Str::studly((string)$this->argument('name'));
+        $module = Str::studly($this->getStringArgument('module'));
+        $name = Str::studly($this->getStringArgument('name'));
         $force = (bool)$this->option('force');
         $dryRun = (bool)$this->option('dry-run');
-        $rollbackId = $this->option('rollback');
+        $rollbackId = $this->getStringOption('rollback');
 
-        if (is_string($rollbackId) && $rollbackId !== '') {
+        if ($rollbackId !== null) {
             $manifest = $this->loadManifestOrFail($rollbackId);
 
             $this->withProgress(1, static function (ProgressBar $bar) use ($manifest): void {

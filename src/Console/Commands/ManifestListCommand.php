@@ -54,14 +54,14 @@ final class ManifestListCommand extends BaseCommand
             return $tb <=> $ta;
         });
 
-        $wantJson = (bool)$this->option('json');
-        $wantMod = $this->option('module');
-        $wantType = $this->option('type');
-        $afterIso = $this->option('after');
-        $beforeIso = $this->option('before');
+        $wantJson = $this->option('json') === true;
+        $wantMod = $this->getStringOption('module');
+        $wantType = $this->getStringOption('type');
+        $afterIso = $this->getStringOption('after');
+        $beforeIso = $this->getStringOption('before');
 
-        $afterTs = $afterIso ? $this->parseIsoToTs($afterIso) : null;
-        $beforeTs = $beforeIso ? $this->parseIsoToTs($beforeIso) : null;
+        $afterTs = $afterIso !== null ? $this->parseIsoToTs($afterIso) : null;
+        $beforeTs = $beforeIso !== null ? $this->parseIsoToTs($beforeIso) : null;
 
         $rows = [];
 

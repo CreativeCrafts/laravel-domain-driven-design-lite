@@ -36,8 +36,8 @@ final class MakeDtoCommand extends BaseCommand
     {
         $this->prepare();
 
-        $rollback = (string)($this->option('rollback') ?? '');
-        if ($rollback !== '') {
+        $rollback = $this->getStringOption('rollback');
+        if ($rollback !== null) {
             $m = $this->loadManifestOrFail($rollback);
             $m->rollback();
             // UX polish: success box, but keep existing intent & exit code
@@ -45,10 +45,10 @@ final class MakeDtoCommand extends BaseCommand
             return self::SUCCESS;
         }
 
-        $module = Str::studly((string)$this->argument('module'));
-        $class = Str::studly((string)$this->argument('name'));
-        $suffixPath = trim((string)($this->option('in') ?? ''), '/\\');
-        $propsOpt = (string)($this->option('props') ?? '');
+        $module = Str::studly($this->getStringArgument('module'));
+        $class = Str::studly($this->getStringArgument('name'));
+        $suffixPath = trim($this->getStringOption('in') ?? '', '/\\');
+        $propsOpt = $this->getStringOption('props') ?? '';
         $noTest = $this->option('no-test') === true;
         $dry = $this->option('dry-run') === true;
         $force = $this->option('force') === true;

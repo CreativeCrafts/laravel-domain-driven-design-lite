@@ -31,14 +31,17 @@ final class DoctorDomainCommand extends BaseCommand
     {
         $this->prepare();
 
-        $bin = (string)$this->option('bin');
-        $config = (string)$this->option('config');
-        $wantJson = (bool)$this->option('json');
-        $strict = (bool)$this->option('strict');
-        $stdinReport = $this->option('stdin-report');
-        $failOn = (string)($this->option('fail-on') ?? 'violations');
+        $bin = $this->getStringOption('bin') ?? 'vendor/bin/deptrac';
+        $config = $this->getStringOption('config') ?? 'deptrac.yaml';
+        $wantJson = $this->option('json') === true;
+        $strict = $this->option('strict') === true;
+        $stdinReport = $this->getStringOption('stdin-report');
+        $failOn = strtolower($this->getStringOption('fail-on') ?? 'violations');
+        if (!in_array($failOn, ['violations', 'errors', 'uncovered', 'any'], true)) {
+            throw new RuntimeException('Invalid --fail-on value. Use: violations|errors|uncovered|any.');
+        }
 
-        if (is_string($stdinReport) && $stdinReport !== '') {
+        if ($stdinReport !== null) {
             return $this->handleStdinReport($stdinReport, $failOn, $wantJson);
         }
 

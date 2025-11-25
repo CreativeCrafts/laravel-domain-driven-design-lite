@@ -34,8 +34,8 @@ final class MakeRequestCommand extends BaseCommand
     {
         $this->prepare();
 
-        $rollback = (string)($this->option('rollback') ?? '');
-        if ($rollback !== '') {
+        $rollback = $this->getStringOption('rollback');
+        if ($rollback !== null) {
             try {
                 $m = $this->loadManifestOrFail($rollback);
             } catch (Throwable $e) {
@@ -55,18 +55,9 @@ final class MakeRequestCommand extends BaseCommand
             return self::SUCCESS;
         }
 
-        $moduleArg = $this->argument('module');
-        $nameArg = $this->argument('name');
-
-        if ($moduleArg === null || $nameArg === null) {
-            $this->error('Arguments "module" and "name" are required unless using --rollback.');
-            $this->warnBox('Provide both arguments or use --rollback=<manifest-id>.');
-            return self::FAILURE;
-        }
-
-        $module = Str::studly((string)$moduleArg);
-        $suffix = trim((string)($this->option('suffix') ?? 'Request'));
-        $base = Str::studly((string)$nameArg);
+        $module = Str::studly($this->getStringArgument('module'));
+        $base = Str::studly($this->getStringArgument('name'));
+        $suffix = trim($this->getStringOption('suffix') ?? 'Request');
         $class = $base . $suffix;
 
         $manifest = $this->beginManifest();

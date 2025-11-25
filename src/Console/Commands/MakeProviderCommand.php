@@ -34,22 +34,16 @@ final class MakeProviderCommand extends BaseCommand
     {
         $this->prepare();
 
-        $rollback = (string)($this->option('rollback') ?? '');
-        if ($rollback !== '') {
+        $rollback = $this->getStringOption('rollback');
+        if ($rollback !== null) {
             $m = $this->loadManifestOrFail($rollback);
             $m->rollback();
             $this->info('Rollback complete: ' . $rollback);
             return self::SUCCESS;
         }
 
-        $moduleArg = $this->argument('module');
-        if ($moduleArg === null) {
-            $this->error('Argument "module" is required unless using --rollback.');
-            return self::FAILURE;
-        }
-
-        $module = Str::studly((string)$moduleArg);
-        $type = strtolower((string)($this->option('type') ?? 'route'));
+        $module = Str::studly($this->getStringArgument('module'));
+        $type = strtolower($this->getStringOption('type') ?? 'route');
         if (!in_array($type, ['route', 'event'], true)) {
             $this->error('Invalid --type. Allowed: route, event');
             return self::FAILURE;

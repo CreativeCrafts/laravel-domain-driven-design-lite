@@ -30,8 +30,8 @@ final class PublishQualityCommand extends BaseCommand
     {
         $this->prepare();
 
-        $rollback = (string)($this->option('rollback') ?? '');
-        if ($rollback !== '') {
+        $rollback = $this->getStringOption('rollback');
+        if ($rollback !== null) {
             $m = $this->loadManifestOrFail($rollback);
             $m->rollback();
             $this->info('Rollback complete: ' . $rollback);
@@ -39,7 +39,7 @@ final class PublishQualityCommand extends BaseCommand
             return self::SUCCESS;
         }
 
-        $target = (string)($this->option('target') ?? 'all');
+        $target = $this->getStringOption('target') ?? 'all';
         $force = $this->option('force') === true;
         $dry = $this->option('dry-run') === true;
 

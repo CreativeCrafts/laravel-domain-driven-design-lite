@@ -34,13 +34,13 @@ final class ModuleScaffoldCommand extends BaseCommand
     {
         $this->prepare();
 
-        $rollbackOpt = $this->option('rollback');
-        if (is_string($rollbackOpt) && $rollbackOpt !== '') {
+        $rollbackOpt = $this->getStringOption('rollback');
+        if ($rollbackOpt !== null) {
             $m = $this->loadManifestOrFail($rollbackOpt);
             $m->rollback();
 
             // Safe post-rollback pruning of empty module directories when a module name is provided.
-            $module = Str::studly((string)$this->argument('name'));
+            $module = Str::studly($this->getStringArgument('name'));
             if ($module !== '') {
                 $this->pruneEmptyModuleTree($module);
             }
@@ -50,7 +50,7 @@ final class ModuleScaffoldCommand extends BaseCommand
             return self::SUCCESS;
         }
 
-        $module = Str::studly((string)$this->argument('name'));
+        $module = Str::studly($this->getStringArgument('name'));
         $dry = $this->option('dry-run') === true;
         $force = $this->option('force') === true;
         $fixPsr4 = $this->option('fix-psr4') === true;

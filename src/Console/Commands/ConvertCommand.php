@@ -46,15 +46,15 @@ final class ConvertCommand extends BaseCommand
     {
         $this->prepare();
 
-        $rollbackId = (string)($this->option('rollback') ?? '');
-        if ($rollbackId !== '') {
+        $rollbackId = $this->getStringOption('rollback');
+        if ($rollbackId !== null) {
             $manifest = $this->loadManifestOrFail($rollbackId);
             $manifest->rollback();
             $this->info('Rollback complete: ' . $rollbackId);
             return self::SUCCESS;
         }
 
-        $module = Str::studly((string)$this->argument('module'));
+        $module = Str::studly($this->getStringArgument('module'));
         if ($module === '') {
             throw new RuntimeException('Module is required.');
         }

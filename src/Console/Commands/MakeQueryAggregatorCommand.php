@@ -33,24 +33,16 @@ final class MakeQueryAggregatorCommand extends BaseCommand
     {
         $this->prepare();
 
-        $rollback = (string)($this->option('rollback') ?? '');
-        if ($rollback !== '') {
+        $rollback = $this->getStringOption('rollback');
+        if ($rollback !== null) {
             $m = $this->loadManifestOrFail($rollback);
             $m->rollback();
             $this->info('Rollback complete: ' . $rollback);
             return self::SUCCESS;
         }
 
-        $moduleArg = $this->argument('module');
-        $nameArg = $this->argument('name');
-
-        if ($moduleArg === null || $nameArg === null) {
-            $this->error('Arguments "module" and "name" are required unless using --rollback.');
-            return self::FAILURE;
-        }
-
-        $module = Str::studly((string)$moduleArg);
-        $base = Str::studly((string)$nameArg);
+        $module = Str::studly($this->getStringArgument('module'));
+        $base = Str::studly($this->getStringArgument('name'));
         $class = $base . 'Aggregator';
 
         $manifest = $this->beginManifest();
@@ -98,10 +90,11 @@ final class MakeQueryAggregatorCommand extends BaseCommand
         }
 
         if ($fs->exists($path)) {
-            $backup = storage_path('app/ddd-lite_scaffold/backups/' . sha1($path) . '.bak');
+            $relativePath = $this->rel($path);
+            $backup = storage_path('app/ddd-lite_scaffold/backups/' . sha1($relativePath) . '.bak');
             $fs->ensureDirectoryExists(dirname($backup));
             $fs->put($backup, (string)$fs->get($path));
-            $manifest->trackUpdate($this->rel($path), $backup);
+            $manifest->trackUpdate($relativePath, $this->rel($backup));
         } else {
             $manifest->trackCreate($this->rel($path));
         }

@@ -36,18 +36,18 @@ final class MakeContractCommand extends BaseCommand
     {
         $this->prepare();
 
-        $rollback = (string)($this->option('rollback') ?? '');
-        if ($rollback !== '') {
+        $rollback = $this->getStringOption('rollback');
+        if ($rollback !== null) {
             $m = $this->loadManifestOrFail($rollback);
             $m->rollback();
             $this->info("Rollback complete for {$rollback}.");
             return self::SUCCESS;
         }
 
-        $module = Str::studly((string)$this->argument('module'));
-        $base = Str::studly((string)$this->argument('name'));
-        $suffixPath = trim((string)($this->option('in') ?? ''), '/\\');
-        $methodsSpec = (string)($this->option('methods') ?? '');
+        $module = Str::studly($this->getStringArgument('module'));
+        $base = Str::studly($this->getStringArgument('name'));
+        $suffixPath = trim($this->getStringOption('in') ?? '', '/\\');
+        $methodsSpec = $this->getStringOption('methods') ?? '';
         $withFake = $this->option('with-fake') === true;
         $noTest = $this->option('no-test') === true;
         $dry = $this->option('dry-run') === true;

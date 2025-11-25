@@ -33,8 +33,8 @@ final class MakeValueObjectCommand extends BaseCommand
     {
         $this->prepare();
 
-        $rollbackOpt = $this->option('rollback');
-        if (is_string($rollbackOpt) && $rollbackOpt !== '') {
+        $rollbackOpt = $this->getStringOption('rollback');
+        if ($rollbackOpt !== null) {
             $m = $this->loadManifestOrFail($rollbackOpt);
             $m->rollback();
             $this->info('Rollback complete: ' . $rollbackOpt);
@@ -42,9 +42,9 @@ final class MakeValueObjectCommand extends BaseCommand
             return self::SUCCESS;
         }
 
-        $module = Str::studly((string)$this->argument('module'));
-        $name = Str::studly((string)$this->argument('name'));
-        $scalar = (string)$this->option('scalar');
+        $module = Str::studly($this->getStringArgument('module'));
+        $name = Str::studly($this->getStringArgument('name'));
+        $scalar = $this->getStringOption('scalar') ?? 'string';
         $dry = $this->option('dry-run') === true;
         $force = $this->option('force') === true;
 

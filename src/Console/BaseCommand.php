@@ -106,4 +106,27 @@ abstract class BaseCommand extends Command
         $fs = app(Filesystem::class);
         return Manifest::load($fs, $id);
     }
+
+    /**
+     * Safely retrieve a string console option or null if not provided/empty.
+     */
+    protected function getStringOption(string $name): ?string
+    {
+        $value = $this->option($name);
+        return is_string($value) && $value !== '' ? $value : null;
+    }
+
+    /**
+     * Retrieve a string argument with validation.
+     *
+     * @throws RuntimeException when the argument is not a string.
+     */
+    protected function getStringArgument(string $name): string
+    {
+        $value = $this->argument($name);
+        if (!is_string($value)) {
+            throw new RuntimeException("Argument '{$name}' must be provided as a string.");
+        }
+        return $value;
+    }
 }

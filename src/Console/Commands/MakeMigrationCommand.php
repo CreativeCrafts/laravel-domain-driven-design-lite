@@ -34,28 +34,20 @@ final class MakeMigrationCommand extends BaseCommand
     {
         $this->prepare();
 
-        $rollback = (string)($this->option('rollback') ?? '');
-        if ($rollback !== '') {
+        $rollback = $this->getStringOption('rollback');
+        if ($rollback !== null) {
             $m = $this->loadManifestOrFail($rollback);
             $m->rollback();
             $this->info('Rollback complete: ' . $rollback);
             return self::SUCCESS;
         }
 
-        $moduleArg = $this->argument('module');
-        $nameArg = $this->argument('name');
+        $module = Str::studly($this->getStringArgument('module'));
+        $name = Str::snake($this->getStringArgument('name'));
 
-        if ($moduleArg === null || $nameArg === null) {
-            $this->error('Arguments "module" and "name" are required unless using --rollback.');
-            return self::FAILURE;
-        }
-
-        $module = Str::studly((string)$moduleArg);
-        $name = Str::snake((string)$nameArg);
-
-        $tableOpt = (string)($this->option('table') ?? '');
-        $createOpt = (string)($this->option('create') ?? '');
-        $pathOpt = (string)($this->option('path') ?? 'database/migrations');
+        $tableOpt = $this->getStringOption('table') ?? '';
+        $createOpt = $this->getStringOption('create') ?? '';
+        $pathOpt = $this->getStringOption('path') ?? 'database/migrations';
 
         $isCreate = $createOpt !== '' || str_starts_with($name, 'create_') || str_contains($name, '_create_');
         $table = $tableOpt !== '' ? Str::snake($tableOpt) : $this->inferTableFromName($name, $isCreate);

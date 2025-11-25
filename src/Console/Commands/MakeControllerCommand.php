@@ -34,25 +34,17 @@ final class MakeControllerCommand extends BaseCommand
     {
         $this->prepare();
 
-        $rollback = (string)($this->option('rollback') ?? '');
-        if ($rollback !== '') {
+        $rollback = $this->getStringOption('rollback');
+        if ($rollback !== null) {
             $m = $this->loadManifestOrFail($rollback);
             $m->rollback();
             $this->info('Rollback complete: ' . $rollback);
             return self::SUCCESS;
         }
 
-        $moduleArg = $this->argument('module');
-        $nameArg = $this->argument('name');
-
-        if ($moduleArg === null || $nameArg === null) {
-            $this->error('Arguments "module" and "name" are required unless using --rollback.');
-            return self::FAILURE;
-        }
-
-        $module = Str::studly((string)$moduleArg);
-        $suffix = trim((string)($this->option('suffix') ?? 'Controller'));
-        $base = Str::studly((string)$nameArg);
+        $module = Str::studly($this->getStringArgument('module'));
+        $base = Str::studly($this->getStringArgument('name'));
+        $suffix = trim($this->getStringOption('suffix') ?? 'Controller');
         $class = $base . $suffix;
 
         $moduleRoot = base_path("modules/{$module}");
