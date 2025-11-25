@@ -75,7 +75,8 @@ final class PhpClassScanner
         for ($i = $start; $i < $count; $i++) {
             $token = $tokens[$i];
             if (is_array($token) && $token[0] === T_STRING) {
-                return (string)$token[1];
+                $val = $token[1] ?? null;
+                return is_string($val) ? $val : '';
             }
         }
         return '';

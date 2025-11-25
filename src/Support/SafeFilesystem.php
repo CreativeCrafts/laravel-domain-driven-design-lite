@@ -37,13 +37,23 @@ final readonly class SafeFilesystem
     {
         $abs = base_path($relativePath);
 
-        if (!$force && file_exists($abs)) {
-            throw new RuntimeException("File already exists: {$relativePath}. Use --force to overwrite.");
+        $this->fs->ensureDirectoryExists(dirname($abs));
+
+        if (file_exists($abs)) {
+            if (!$force) {
+                throw new RuntimeException("File already exists: {$relativePath}. Use --force to overwrite.");
+            }
+            // With force, create a backup and track as update, then overwrite.
+            $backup = storage_path('app/ddd-lite_scaffold/backups/' . str_replace(['\\', '/'], '_', $relativePath) . '.bak');
+            $this->fs->ensureDirectoryExists(dirname($backup));
+            @copy($abs, $backup);
+            $manifest->trackUpdate($relativePath, $backup);
+        } else {
+            // Fresh create
+            $manifest->trackCreate($relativePath);
         }
 
-        $this->fs->ensureDirectoryExists(dirname($abs));
         $this->fs->put($abs, $contents);
-        $manifest->trackCreate($relativePath);
     }
 
     /**

@@ -3,7 +3,6 @@
 declare(strict_types=1);
 
 use Illuminate\Filesystem\Filesystem;
-use Symfony\Component\Finder\SplFileInfo;
 
 it('lists manifests and shows one by id', function (): void {
     $fs = new Filesystem();

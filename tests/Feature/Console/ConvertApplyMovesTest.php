@@ -4,7 +4,8 @@ declare(strict_types=1);
 
 use Illuminate\Filesystem\Filesystem;
 
-function convertMovesUniqueSuffix(): string {
+function convertMovesUniqueSuffix(): string
+{
     return strtoupper(substr(md5(uniqid('', true)), 0, 8));
 }
 

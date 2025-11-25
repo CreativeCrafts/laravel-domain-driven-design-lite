@@ -20,16 +20,26 @@ final class DoctorCiJson
         $warnings = self::countBy($issues, 'warning');
 
         $normalized = array_map(static function (array $i): array {
+            $severity = is_string($i['severity'] ?? null) ? $i['severity'] : 'warning';
+            $type = is_string($i['type'] ?? null) ? $i['type'] : 'unknown';
+            $message = is_string($i['message'] ?? null) ? $i['message'] : '';
+            $file = is_string($i['file'] ?? null) ? $i['file'] : '';
+            $line = is_int($i['line'] ?? null) ? $i['line'] : (is_string($i['line'] ?? null) && is_numeric($i['line']) ? (int)$i['line'] : 0);
+            $column = is_int($i['column'] ?? null) ? $i['column'] : (is_string($i['column'] ?? null) && is_numeric($i['column']) ? (int)$i['column'] : 0);
+            $doctorKey = Arr::get($i, 'doctorKey');
+            $suggestion = Arr::get($i, 'suggestion');
+            $fixable = Arr::get($i, 'fixable');
+
             return [
-                'type' => in_array(($i['severity'] ?? 'warning'), ['error', 'warning'], true) ? $i['severity'] : 'warning',
-                'code' => (string)($i['type'] ?? 'unknown'),
-                'message' => (string)($i['message'] ?? ''),
-                'file' => (string)($i['file'] ?? ''),
-                'line' => (int)($i['line'] ?? 0),
-                'column' => (int)($i['column'] ?? 0),
-                'doctorKey' => (string)Arr::get($i, 'doctorKey', ''),
-                'suggestion' => (string)Arr::get($i, 'suggestion', ''),
-                'fixable' => (bool)Arr::get($i, 'fixable', false),
+                'type' => in_array($severity, ['error', 'warning'], true) ? $severity : 'warning',
+                'code' => $type,
+                'message' => $message,
+                'file' => $file,
+                'line' => $line,
+                'column' => $column,
+                'doctorKey' => is_string($doctorKey) ? $doctorKey : '',
+                'suggestion' => is_string($suggestion) ? $suggestion : '',
+                'fixable' => (bool)$fixable,
             ];
         }, $issues);
 

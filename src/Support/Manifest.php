@@ -192,28 +192,32 @@ final class Manifest
 
         // --- Final safety pass: prune all empty directories related to this manifest ---
         // Collect candidate directories from mkdirs and from parent dirs of all touched paths.
-        $candidates = [];
+        /** @var array<string,bool> $set */
+        $set = [];
 
         foreach ($this->actions as $a) {
             $pathAbs = base_path($a['path']);
             // If we explicitly created a directory, include it.
             if ($a['type'] === 'mkdir') {
-                $candidates[] = $pathAbs;
+                $set[$pathAbs] = true;
             }
             // Include the parent directory of any file path.
-            $candidates[] = dirname($pathAbs);
+            $set[dirname($pathAbs)] = true;
 
             // For moves, include parent dirs of both "from" and "to".
-            if ($a['type'] === 'move' && isset($a['to']) && is_string($a['to'])) {
-                $candidates[] = dirname(base_path($a['to']));
+            if ($a['type'] === 'move' && isset($a['to'])) {
+                // 'to' is declared as string in the action shape when present
+                $set[dirname(base_path($a['to']))] = true;
             }
         }
 
         // Deduplicate and sort deepest-first, so children are pruned before parents.
-        $candidates = array_values(array_unique(array_filter($candidates, static fn ($p) => is_string($p))));
+        /** @var array<int,string> $candidates */
+        $candidates = array_keys($set);
         usort($candidates, static fn (string $a, string $b) => strlen($b) <=> strlen($a));
 
         foreach ($candidates as $dir) {
+            /** @var string $dir */
             if (is_dir($dir) && $this->isTreeEmpty($dir)) {
                 $this->fs->deleteDirectory($dir);
             }
@@ -245,7 +249,9 @@ final class Manifest
             return false;
         }
         // If there are subdirectories, ensure they are also file-empty.
-        foreach ($this->fs->directories($dir) as $sub) {
+        /** @var array<int,string> $subDirs */
+        $subDirs = $this->fs->directories($dir);
+        foreach ($subDirs as $sub) {
             if (!$this->isTreeEmpty($sub)) {
                 return false;
             }

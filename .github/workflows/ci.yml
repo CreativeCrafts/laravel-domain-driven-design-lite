@@ -1,0 +1,71 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ "**" ]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  tests:
+    name: PHP ${{ matrix.php }} • ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ ubuntu-latest ]
+        php: [ '8.3' ]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          coverage: pcov
+          tools: composer:v2
+          ini-values: memory_limit=-1
+          extensions: mbstring, intl, dom, fileinfo
+
+      - name: Install dependencies (cached)
+        uses: ramsey/composer-install@v3
+        with:
+          composer-options: --no-interaction --no-progress --prefer-dist
+
+      - name: Validate composer.json
+        run: composer validate --strict
+
+      - name: Security audit
+        run: composer audit --no-interaction --no-progress
+
+      - name: Code style (Pint, check only)
+        run: vendor/bin/pint --test -v
+
+      - name: PHPStan
+        run: composer analyse
+
+      - name: Deptrac (package rules)
+        run: composer deptrac:package
+
+      - name: Tests (Pest)
+        env:
+          XDEBUG_MODE: coverage
+        run: composer test-coverage
+
+      - name: Upload coverage (artifact)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-${{ matrix.os }}-php${{ matrix.php }}
+          path: build/coverage
+          if-no-files-found: ignore

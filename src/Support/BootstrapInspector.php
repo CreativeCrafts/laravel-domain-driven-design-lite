@@ -84,6 +84,10 @@ final readonly class BootstrapInspector
     /**
      * @throws FileNotFoundException
      */
+    /**
+     * @param array<int,string> $keys
+     * @return array<int,string>
+     */
     public function missingRoutingKeys(array $keys): array
     {
         $path = base_path('bootstrap/app.php');

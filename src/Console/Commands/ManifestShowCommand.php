@@ -67,14 +67,18 @@ final class ManifestShowCommand extends BaseCommand
         // Infer a module from any path under modules/<Name>/ (robust against missing keys).
         $module = null;
         foreach ($data['actions'] as $a) {
-            $p = (string)($a['path'] ?? '');
+            if (!is_array($a)) {
+                continue;
+            }
+            $p = is_string($a['path'] ?? null) ? $a['path'] : '';
             if ($p !== '' && preg_match('#^modules/([^/]+)/#', $p, $m1) === 1) {
                 $module = $m1[1];
                 break;
             }
 
-            if (($a['type'] ?? '') === 'move' && is_string($a['to'] ?? null)) {
-                $t = (string)$a['to'];
+            $typeIsMove = is_string($a['type'] ?? null) && $a['type'] === 'move';
+            if ($typeIsMove && is_string($a['to'] ?? null)) {
+                $t = $a['to'];
                 // Correct: pass $t as a subject and capture into $m2
                 if ($t !== '' && preg_match('#^modules/([^/]+)/#', $t, $m2) === 1) {
                     $module = $m2[1];
@@ -84,11 +88,11 @@ final class ManifestShowCommand extends BaseCommand
         }
 
         $counts = [
-            'create' => count(array_filter($data['actions'], static fn (array $a) => ($a['type'] ?? '') === 'create')),
-            'update' => count(array_filter($data['actions'], static fn (array $a) => ($a['type'] ?? '') === 'update')),
-            'delete' => count(array_filter($data['actions'], static fn (array $a) => ($a['type'] ?? '') === 'delete')),
-            'mkdir' => count(array_filter($data['actions'], static fn (array $a) => ($a['type'] ?? '') === 'mkdir')),
-            'move' => count(array_filter($data['actions'], static fn (array $a) => ($a['type'] ?? '') === 'move')),
+            'create' => count(array_filter($data['actions'], static fn ($a): bool => is_array($a) && (($a['type'] ?? '') === 'create'))),
+            'update' => count(array_filter($data['actions'], static fn ($a): bool => is_array($a) && (($a['type'] ?? '') === 'update'))),
+            'delete' => count(array_filter($data['actions'], static fn ($a): bool => is_array($a) && (($a['type'] ?? '') === 'delete'))),
+            'mkdir' => count(array_filter($data['actions'], static fn ($a): bool => is_array($a) && (($a['type'] ?? '') === 'mkdir'))),
+            'move' => count(array_filter($data['actions'], static fn ($a): bool => is_array($a) && (($a['type'] ?? '') === 'move'))),
         ];
 
         if ($this->option('json')) {
@@ -111,9 +115,9 @@ final class ManifestShowCommand extends BaseCommand
         if ($rawId !== null && $rawId !== $dataId) {
             $this->twoColumn('Raw id', $rawId);
         }
-        $this->twoColumn('Module', (string)($module ?? '—'));
-        $this->twoColumn('Created', (string)($data['created_at'] ?? '—'));
-        $this->twoColumn('Format', (string)($data['format'] ?? '—'));
+        $this->twoColumn('Module', is_string($module) ? $module : '—');
+        $this->twoColumn('Created', is_string($data['created_at'] ?? null) ? $data['created_at'] : '—');
+        $this->twoColumn('Format', is_string($data['format'] ?? null) ? $data['format'] : '—');
         $this->twoColumn(
             'Actions',
             sprintf(
@@ -129,12 +133,18 @@ final class ManifestShowCommand extends BaseCommand
         $this->line('');
         $this->info('Actions:');
         foreach ($data['actions'] as $idx => $a) {
+            if (!is_array($a)) {
+                continue;
+            }
+            $typeStr = is_string($a['type'] ?? null) ? $a['type'] : '';
+            $pathStr = is_string($a['path'] ?? null) ? $a['path'] : '';
+            $toStr = is_string($a['to'] ?? null) ? $a['to'] : null;
             $line = sprintf(
                 '%2d) %-6s %s%s',
                 $idx + 1,
-                (string)($a['type'] ?? ''),
-                (string)($a['path'] ?? ''),
-                isset($a['to']) && is_string($a['to']) ? (' → ' . $a['to']) : ''
+                $typeStr,
+                $pathStr,
+                $toStr !== null ? (' → ' . $toStr) : ''
             );
             $this->line($line);
         }

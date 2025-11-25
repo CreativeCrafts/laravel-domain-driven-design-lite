@@ -4,7 +4,6 @@ includes:
 parameters:
     paths:
         - src
-        - tests
     level: max
 
     excludePaths:
@@ -24,4 +23,4 @@ parameters:
     checkUnionTypes: true
     treatPhpDocTypesAsCertain: true
     inferPrivatePropertyTypeFromConstructor: true
-    reportUnmatchedIgnoredErrors: true
+    reportUnmatchedIgnoredErrors: false

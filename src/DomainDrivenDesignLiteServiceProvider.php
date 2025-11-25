@@ -10,6 +10,7 @@ use CreativeCrafts\DomainDrivenDesignLite\Console\Commands\DoctorCiCommand;
 use CreativeCrafts\DomainDrivenDesignLite\Console\Commands\DoctorCommand;
 use CreativeCrafts\DomainDrivenDesignLite\Console\Commands\DoctorDomainCommand;
 use CreativeCrafts\DomainDrivenDesignLite\Console\Commands\MakeActionCommand;
+use CreativeCrafts\DomainDrivenDesignLite\Console\Commands\MakeAggregateRootCommand;
 use CreativeCrafts\DomainDrivenDesignLite\Console\Commands\MakeContractCommand;
 use CreativeCrafts\DomainDrivenDesignLite\Console\Commands\MakeControllerCommand;
 use CreativeCrafts\DomainDrivenDesignLite\Console\Commands\MakeDtoCommand;
@@ -26,54 +27,98 @@ use CreativeCrafts\DomainDrivenDesignLite\Console\Commands\ManifestListCommand;
 use CreativeCrafts\DomainDrivenDesignLite\Console\Commands\ManifestShowCommand;
 use CreativeCrafts\DomainDrivenDesignLite\Console\Commands\ModuleScaffoldCommand;
 use CreativeCrafts\DomainDrivenDesignLite\Console\Commands\PublishQualityCommand;
-use Spatie\LaravelPackageTools\Package;
-use Spatie\LaravelPackageTools\PackageServiceProvider;
+use Illuminate\Support\ServiceProvider;
 
-class DomainDrivenDesignLiteServiceProvider extends PackageServiceProvider
+final class DomainDrivenDesignLiteServiceProvider extends ServiceProvider
 {
-    public function configurePackage(Package $package): void
+    /**
+     * Register bindings.
+     * Keep this intentionally minimal: the package is dev/CI tooling only.
+     */
+    public function register(): void
     {
-        $package
-            ->name('laravel-domain-driven-design-lite')
-            ->hasCommands([
-                ModuleScaffoldCommand::class,
-                DoctorCommand::class,
-                DoctorCiCommand::class,
-                MakeActionCommand::class,
-                MakeDtoCommand::class,
-                MakeContractCommand::class,
-                MakeRepositoryCommand::class,
-                MakeModelCommand::class,
-                MakeRequestCommand::class,
-                MakeControllerCommand::class,
-                MakeMigrationCommand::class,
-                MakeProviderCommand::class,
-                MakeQueryCommand::class,
-                MakeQueryBuilderCommand::class,
-                MakeQueryAggregatorCommand::class,
-                MakeValueObjectCommand::class,
-                ManifestListCommand::class,
-                ManifestShowCommand::class,
-                BindContractCommand::class,
-                ConvertCommand::class,
-                PublishQualityCommand::class,
-                DoctorDomainCommand::class,
-            ]);
+        // No container bindings required for now.
     }
 
-    public function packageBooted(): void
+    /**
+     * Bootstrap any application services.
+     */
+    public function boot(): void
     {
+        if (!$this->app->runningInConsole()) {
+            // All functionality is console-only; nothing to do in HTTP runtime.
+            return;
+        }
+
+        $this->bootForConsole();
+    }
+
+    /**
+     * Console-only bootstrapping: commands & publish groups.
+     */
+    protected function bootForConsole(): void
+    {
+        $this->registerCommands();
+        $this->registerPublishes();
+    }
+
+    /**
+     * Register all ddd-lite artisan commands.
+     */
+    protected function registerCommands(): void
+    {
+        $this->commands([
+            ModuleScaffoldCommand::class,
+            DoctorCommand::class,
+            DoctorCiCommand::class,
+
+            MakeActionCommand::class,
+            MakeDtoCommand::class,
+            MakeContractCommand::class,
+            MakeRepositoryCommand::class,
+            MakeModelCommand::class,
+            MakeRequestCommand::class,
+            MakeControllerCommand::class,
+            MakeMigrationCommand::class,
+            MakeProviderCommand::class,
+            MakeQueryCommand::class,
+            MakeQueryBuilderCommand::class,
+            MakeQueryAggregatorCommand::class,
+            MakeValueObjectCommand::class,
+            MakeAggregateRootCommand::class,
+
+            ManifestListCommand::class,
+            ManifestShowCommand::class,
+
+            BindContractCommand::class,
+            ConvertCommand::class,
+            PublishQualityCommand::class,
+            DoctorDomainCommand::class,
+        ]);
+    }
+
+    /**
+     * Register publishable resources (stubs, schemas).
+     */
+    protected function registerPublishes(): void
+    {
+        // Core DDD-Lite stubs
         $this->publishes([
             __DIR__ . '/../stubs/ddd-lite' => base_path('stubs/ddd-lite'),
         ], 'ddd-lite-stubs');
 
+        // Doctor JSON schema
         $this->publishes([
-            __DIR__ . '/../stubs/doctor/schema/doctor-report.schema.json' => base_path('stubs/ddd-lite/doctor-report.schema.json'),
+            __DIR__ . '/../stubs/doctor/schema/doctor-report.schema.json' =>
+                base_path('stubs/ddd-lite/doctor-report.schema.json'),
         ], 'ddd-lite-schemas');
 
-        // Optional: include with the broader "ddd-lite" publish group
+        // Optional: broader "ddd-lite" publish group.
+        // Keeping behaviour compatible while ensuring the file path is valid.
         $this->publishes([
-            __DIR__ . '/../stubs/doctor/schema/doctor-report.schema.json' => base_path('stubs/ddd-lite/doctor-report.schema.json'),
+            __DIR__ . '/../stubs/ddd-lite' => base_path('stubs/ddd-lite'),
+            __DIR__ . '/../stubs/doctor/schema/doctor-report.schema.json' =>
+                base_path('stubs/ddd-lite/doctor-report.schema.json'),
         ], 'ddd-lite');
     }
 }

@@ -37,7 +37,13 @@ final readonly class Psr4Guard
         }
 
         $autoload = $json['autoload'] ?? [];
+        if (!is_array($autoload)) {
+            $autoload = [];
+        }
         $psr4 = $autoload['psr-4'] ?? [];
+        if (!is_array($psr4)) {
+            $psr4 = [];
+        }
 
         // Already present and correct? nothing to do.
         if (isset($psr4['Modules\\']) && $psr4['Modules\\'] === 'modules/') {
@@ -46,7 +52,8 @@ final readonly class Psr4Guard
 
         // Patch in our mapping.
         $psr4['Modules\\'] = 'modules/';
-        $json['autoload']['psr-4'] = $psr4;
+        $autoload['psr-4'] = $psr4;
+        $json['autoload'] = $autoload;
 
         $encoded = json_encode($json, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . PHP_EOL;
 
@@ -86,7 +93,7 @@ final readonly class Psr4Guard
             return;
         }
 
-        // If a lowercased variant exists (common on macOS), we can optionally fix.
+        // If a lowercased variant exists (common on macOS/Windows), we can optionally fix.
         $maybeLower = $modulesRoot . DIRECTORY_SEPARATOR . $currentLower;
         if ($maybeLower !== $target && is_dir($maybeLower)) {
             if (!$fix) {
@@ -99,9 +106,39 @@ final readonly class Psr4Guard
                 return;
             }
 
-            // Attempt to rename it (best-effort; rely on underlying FS semantics).
-            rename($maybeLower, $target);
-            $log("Renamed {$maybeLower} -> {$target}");
+            // Force a case-only rename safely using a two-step move via a temp folder
+            $tmp = $modulesRoot . DIRECTORY_SEPARATOR . '.' . $currentLower . '_tmp_' . substr(sha1((string)microtime(true)), 0, 8);
+
+            // Step 1: lower -> tmp (ensure tmp doesn't exist)
+            if (is_dir($tmp)) {
+                // Extremely unlikely; adjust suffix
+                $tmp .= '_' . substr(sha1((string)random_int(PHP_INT_MIN, PHP_INT_MAX)), 0, 4);
+            }
+
+            $step1 = @rename($maybeLower, $tmp);
+
+            // If step1 failed, try direct rename as a fallback; some FS allow it
+            if (!$step1) {
+                $direct = @rename($maybeLower, $target);
+                if ($direct) {
+                    $log("Renamed {$maybeLower} -> {$target}");
+                    return;
+                }
+                // If even direct failed, log and exit gracefully without throwing
+                $log("Warning: could not normalize folder case for {$module}. Continuing.");
+                return;
+            }
+
+            // Step 2: tmp -> Target (PascalCase)
+            $step2 = @rename($tmp, $target);
+            if ($step2) {
+                $log("Renamed {$maybeLower} -> {$target}");
+                return;
+            }
+
+            // If step2 failed, attempt to roll back to original location to avoid leaving tmp behind.
+            @rename($tmp, $maybeLower);
+            $log("Warning: could not normalize folder case for {$module}. Continuing.");
         }
     }
 }

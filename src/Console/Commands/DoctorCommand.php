@@ -82,7 +82,7 @@ final class DoctorCommand extends BaseCommand
                     if ($dry) {
                         $this->line('[doctor] would add "Modules\\\\": "modules/" to composer.json');
                     } else {
-                        $manifest = $manifest ?? $this->beginManifest();
+                        $manifest = $this->beginManifest();
                         $guard->ensureModulesMapping($manifest);
                         $report['composer_psr4']['changed'] = true;
                         $anyChange = true;
@@ -138,7 +138,9 @@ final class DoctorCommand extends BaseCommand
                     if ($dry) {
                         $this->line('[doctor] would ensure withRouting keys: ' . implode(', ', array_keys($map)));
                     } else {
-                        $manifest = $manifest ?? $this->beginManifest();
+                        if ($manifest === null) {
+                            $manifest = $this->beginManifest();
+                        }
                         $editor->ensureRoutingKeys($manifest, $map);
                         $report['routing']['changed'] = true;
                         $anyChange = true;
@@ -162,8 +164,7 @@ final class DoctorCommand extends BaseCommand
                         $mod,
                         $dry,
                         $fix,
-                        fn (string $msg) => $this->line("[doctor][$mod] {$msg}"),
-                        $manifest ?? $this->files // guard may ignore manifest on non-fix paths
+                        fn (string $msg) => $this->line("[doctor][$mod] {$msg}")
                     );
                 } catch (Throwable $e) {
                     $moduleReport['status'] = 'error';
@@ -204,7 +205,9 @@ final class DoctorCommand extends BaseCommand
                             $this->line("[doctor][$mod] would inject {$fqcn} into Application::configure(...)->withProviders([...]).");
                             $moduleReport['actions'][] = "inject {$fqcn} into chain";
                         } else {
-                            $manifest = $manifest ?? $this->beginManifest();
+                            if ($manifest === null) {
+                                $manifest = $this->beginManifest();
+                            }
                             if ($inspector->hasStandaloneWithProvidersBlock()) {
                                 $editor->removeStandaloneWithProviders($manifest);
                                 $anyChange = true;
@@ -253,13 +256,17 @@ final class DoctorCommand extends BaseCommand
                                     : "would rename file to '{$declaredShort}.php' in Providers";
                                 $this->line("[doctor][$mod] mismatch Providers/" . basename($path) . " — prefer={$prefer} (dry-run)");
                             } elseif ($prefer === 'file') {
-                                $manifest = $manifest ?? $this->beginManifest();
+                                if ($manifest === null) {
+                                    $manifest = $this->beginManifest();
+                                }
                                 $fixer->renameClassInFile($manifest, $path, $declaredShort, $fileShort);
                                 $anyChange = true;
                                 $this->line("[doctor][$mod] changed class to '{$fileShort}' in Providers/" . basename($path));
                             } else {
                                 $dest = dirname($path) . DIRECTORY_SEPARATOR . $declaredShort . '.php';
-                                $manifest = $manifest ?? $this->beginManifest();
+                                if ($manifest === null) {
+                                    $manifest = $this->beginManifest();
+                                }
                                 $fixer->renameFile($manifest, $path, $dest);
                                 $anyChange = true;
                                 $this->line("[doctor][$mod] renamed Providers file to '{$declaredShort}.php'");

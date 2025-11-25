@@ -204,6 +204,9 @@ final class MakeContractCommand extends BaseCommand
         return self::SUCCESS;
     }
 
+    /**
+     * @return array<int, array{0:string,1:int,2:string}>
+     */
     protected function getArguments(): array
     {
         return [

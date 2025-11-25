@@ -6,15 +6,16 @@ namespace CreativeCrafts\DomainDrivenDesignLite\Support;
 
 final class PhpUseEditor
 {
+    /**
+     * @param array<int,string> $imports
+     */
     public function ensureImports(string $code, array $imports): string
     {
-        $imports = array_values(array_unique(array_filter($imports)));
+        // Keep only non-empty strings and unique them
+        $imports = array_values(array_unique(array_filter($imports, static fn (string $v): bool => $v !== '')));
         if ($imports === []) {
             return $code;
         }
-
-        $pos = strpos($code, "\nclass ");
-        $pos = $pos === false ? strlen($code) : $pos;
 
         $namespacePos = strpos($code, "\nnamespace ");
         $nsEnd = $namespacePos === false ? 0 : strpos($code, ";\n", $namespacePos);
@@ -26,7 +27,7 @@ final class PhpUseEditor
         $existing = [];
         if (preg_match_all('/^use\s+([^;]+);/m', $code, $m)) {
             foreach ($m[1] as $u) {
-                $existing[] = trim($u);
+                $existing[] = trim((string)$u);
             }
         }
 

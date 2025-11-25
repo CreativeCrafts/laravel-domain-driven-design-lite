@@ -14,8 +14,8 @@ use RuntimeException;
 final class MakeRepositoryCommand extends BaseCommand
 {
     protected $signature = 'ddd-lite:make:repository
-        {module : Module name in PascalCase}
-        {aggregate : Aggregate root name in PascalCase}
+        {module? : Module name in PascalCase}
+        {aggregate? : Aggregate root name in PascalCase}
         {--no-test : Do not create a test}
         {--dry-run : Preview without writing}
         {--force : Overwrite existing files}

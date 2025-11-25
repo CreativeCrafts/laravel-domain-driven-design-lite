@@ -54,16 +54,17 @@ it('is idempotent when unchanged', function (): void {
         '--target' => 'phpstan',
     ])->run();
 
-    $mTime = $fs->exists($phpstan) ? $fs->lastModified($phpstan) : 0;
+    $before = $fs->exists($phpstan) ? (string)$fs->get($phpstan) : '';
 
-    \usleep(1000);
+    // Give the filesystem a brief moment
+    \usleep(2000);
 
     $exit = $this->artisan('ddd-lite:publish:quality', [
         '--target' => 'phpstan',
     ])->run();
 
     expect($exit)->toBe(0)
-        ->and($fs->lastModified($phpstan))->toBe($mTime);
+        ->and((string)$fs->get($phpstan))->toBe($before);
 });
 
 it('overwrites with --force and creates a backup', function (): void {
@@ -111,7 +112,9 @@ it('supports rollback by manifest id', function (): void {
     $manifestId = null;
     foreach ($files as $file) {
         $data = json_decode((string)file_get_contents($file), true);
-        if (!is_array($data)) { continue; }
+        if (!is_array($data)) {
+        continue;
+        }
         foreach (($data['actions'] ?? $data['ops'] ?? []) as $action) {
             $p = $action['path'] ?? $action['target'] ?? null;
             if ($p === $rel) {

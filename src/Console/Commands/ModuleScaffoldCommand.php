@@ -147,7 +147,12 @@ final class ModuleScaffoldCommand extends BaseCommand
             }
 
             if (!$dry) {
-                (new AppBootstrapEditor())->ensureModuleProvider($manifest, $module, $providerClass);
+                try {
+                    (new AppBootstrapEditor())->ensureModuleProvider($manifest, $module, $providerClass);
+                } catch (Throwable $ex) {
+                    // Non-fatal: log and continue to avoid failing the whole command for bootstrap/app.php anomalies
+                    $this->warn('Could not register module provider in bootstrap/app.php: ' . $ex->getMessage());
+                }
                 // Re-assert case once provider is in place
                 $guard->assertOrFixCase($module, false, $fixPsr4, fn (string $msg) => $this->line($msg));
                 $manifest->save();
@@ -165,7 +170,7 @@ final class ModuleScaffoldCommand extends BaseCommand
             $manifest->rollback();
 
             // Best-effort prune if a module name is available
-            if (isset($module) && $module !== '') {
+            if ($module !== '') {
                 $this->pruneEmptyModuleTree($module);
             }
 

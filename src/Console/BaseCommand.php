@@ -23,6 +23,15 @@ abstract class BaseCommand extends Command
     protected SafeFilesystem $safe;
     protected StubRenderer $renderer;
 
+    public function __construct()
+    {
+        parent::__construct();
+        // Initialize with safe defaults; overridden during prepare() in Laravel context
+        $this->files = new Filesystem();
+        $this->safe = new SafeFilesystem($this->files);
+        $this->renderer = new StubRenderer();
+    }
+
     protected function prepare(): void
     {
         if (!function_exists('base_path')) {

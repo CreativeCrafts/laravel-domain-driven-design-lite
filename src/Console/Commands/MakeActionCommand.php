@@ -15,8 +15,8 @@ use Symfony\Component\Console\Input\InputArgument;
 final class MakeActionCommand extends BaseCommand
 {
     protected $signature = 'ddd-lite:make:action
-        {module : Module name in PascalCase}
-        {name : Action class base name without suffix}
+        {module? : Module name in PascalCase}
+        {name? : Action class base name without suffix}
         {--in= : Optional subnamespace inside Domain/Actions, e.g. Trip}
         {--method=__invoke : Method name}
         {--input= : Parameter type preset: none|ulid|FQCN}
@@ -204,6 +204,9 @@ final class MakeActionCommand extends BaseCommand
         return self::SUCCESS;
     }
 
+    /**
+     * @return array<int, array{0:string,1:int,2:string}>
+     */
     protected function getArguments(): array
     {
         return [

@@ -1,0 +1,64 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Modules\{{ Module }}\Domain\Aggregates\{{ Name }};
+
+/**
+ * {{ Name }} Aggregate Root.
+ *
+ * This aggregate is the only entry point from outside the domain for the
+ * {{ Name }} consistency boundary. Child entities / value objects should live
+ * under this namespace (e.g. Internal\*) and never be used directly by App/Infra.
+ *
+ * Note:
+ * This class is intentionally self-contained and does not extend any base class
+ * from the DDD-Lite package. This keeps your domain model independent of the
+ * tooling and allows you to:
+ *
+ * - Extract your own project-specific AggregateRoot base in your app code, or
+ * - Keep aggregates as plain, framework-agnostic PHP classes.
+ */
+final class {{ Name }}
+{
+    /**
+     * {{ Name }} constructor.
+     *
+     * Add the required constructor arguments for this aggregate and call
+     * {@see ensureInvariants()} at the end of construction to assert that
+     * the aggregate starts in a valid state.
+     */
+    public function __construct()
+    {
+        $this->ensureInvariants();
+    }
+
+    /**
+     * Example of a mutating method for this aggregate.
+     *
+     * Replace or remove this method as you shape the aggregate.
+     */
+    public function exampleMutation(): void
+    {
+        // TODO: perform state changes for {{ Name }} aggregate.
+        // e.g. $this->segments[] = $segment;
+
+        $this->ensureInvariants();
+    }
+
+    /**
+     * Invariants that must always hold for this aggregate.
+     *
+     * This method should be called from:
+     * - the constructor
+     * - any mutating method (e.g. addSegment, confirm, cancel)
+     *
+     * Throw domain-specific exceptions when invariants are violated.
+     */
+    protected function ensureInvariants(): void
+    {
+        // TODO: assert invariants for {{ Name }} aggregate.
+        // e.g. $this->ensureDepartureBeforeArrival();
+        //      $this->ensureCapacityNotExceeded();
+    }
+}

@@ -10,6 +10,7 @@ use Illuminate\Contracts\Filesystem\FileNotFoundException;
 use Illuminate\Support\Str;
 use JsonException;
 use RuntimeException;
+use SplFileInfo;
 
 final class DoctorCiCommand extends BaseCommand
 {
@@ -58,18 +59,15 @@ final class DoctorCiCommand extends BaseCommand
             );
         } else {
             $this->line('DDD-lite Doctor CI');
-            $this->twoColumn('Paths', implode(', ', array_map($this->rel(...), $paths)));
+            $this->twoColumn('Paths', implode(', ', array_map(function (string $p): string { return $this->rel($p); }, $paths)));
 
             foreach ($issues as $i) {
-                $this->line(
-                    sprintf(
-                        '[%s] %s | %s | %s',
-                        strtoupper((string)($i['severity'] ?? 'warning')),
-                        (string)($i['type'] ?? 'unknown'),
-                        $this->rel((string)($i['file'] ?? '')),
-                        (string)($i['message'] ?? '')
-                    )
-                );
+                $severity = is_string($i['severity'] ?? null) ? strtoupper($i['severity']) : 'WARNING';
+                $type = is_string($i['type'] ?? null) ? $i['type'] : 'unknown';
+                $file = is_string($i['file'] ?? null) ? $this->rel($i['file']) : '';
+                $message = is_string($i['message'] ?? null) ? $i['message'] : '';
+
+                $this->line(sprintf('[%s] %s | %s | %s', $severity, $type, $file, $message));
             }
 
             $this->line('');
@@ -102,7 +100,7 @@ final class DoctorCiCommand extends BaseCommand
 
         foreach ($paths as $p) {
             if (is_dir($p)) {
-                /** @var iterable<int, string>|iterable<int, \SplFileInfo> $phpFiles */
+                /** @var iterable<int, string>|iterable<int, SplFileInfo> $phpFiles */
                 $phpFiles = $fs->allFiles($p, true);
 
                 foreach ($phpFiles as $fileInfo) {
@@ -246,7 +244,7 @@ final class DoctorCiCommand extends BaseCommand
         $m = [];
 
         if (preg_match('/class\s+([A-Za-z_][A-Za-z0-9_]*)\s/u', $code, $m) === 1) {
-            return (string)($m[1] ?? '');
+            return (string)$m[1];
         }
 
         return '';
@@ -269,14 +267,8 @@ final class DoctorCiCommand extends BaseCommand
     }
 
     /**
-     * @param array<int, string> $paths
      * @return array<int, string>
      */
-    private function relList(array $paths): array
-    {
-        return array_map($this->rel(...), $paths);
-    }
-
     private function csvOption(bool $allowRelative = false): array
     {
         $raw = (string)($this->option('paths') ?? '');

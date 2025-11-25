@@ -1,0 +1,46 @@
+name: Pint auto-fix
+
+on:
+  pull_request:
+    types: [ opened, synchronize, reopened ]
+    branches: [ "**" ]
+    paths:
+      - '**/*.php'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: pint-${{ github.event.pull_request.head.repo.full_name }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  autofix:
+    if: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout PR branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+
+      - name: Setup PHP (runtime for Pint)
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+
+      - name: Install dependencies (no dev cache warmup needed)
+        run: composer install --no-interaction --no-progress --prefer-dist
+
+      - name: Run Pint (fix)
+        run: vendor/bin/pint -v
+
+      - name: Commit and push changes
+        uses: stefanzweifel/git-auto-commit-action@v6
+        with:
+          commit_message: 'chore(pint): fix code style'
+          commit_user_name: 'github-actions[bot]'
+          commit_user_email: '41898282+github-actions[bot]@users.noreply.github.com'
+          push_options: '--force-with-lease'

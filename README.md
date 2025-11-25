@@ -3,81 +3,154 @@
 [![GitHub Code Style Action Status](https://img.shields.io/github/actions/workflow/status/creativecrafts/laravel-domain-driven-design-lite/fix-php-code-style-issues.yml?branch=main&label=code%20style&style=flat-square)](https://github.com/creativecrafts/laravel-domain-driven-design-lite/actions?query=workflow%3A"Fix+PHP+code+style+issues"+branch%3Amain)
 [![Total Downloads](https://img.shields.io/packagist/dt/creativecrafts/laravel-domain-driven-design-lite.svg?style=flat-square)](https://packagist.org/packages/creativecrafts/laravel-domain-driven-design-lite)
 
-## 🧭 What is DDD-Lite?
+> Pragmatic, Laravel-native **DDD modules** with generators, safety rails, and CI helpers – without drowning you in ceremony.
 
-**DDD-Lite** brings a pragmatic, Laravel-native way to apply Domain-Driven Design without a giant rewrite. It scaffolds **self-contained modules** with clean boundaries (Domain vs. App), gives you
-**generators** (DTOs, Actions, Contracts, Models, Controllers, Queries…), enforces guardrails with doctor commands, and protects changes with a **manifest & rollback** mechanism.
+---
 
-The result: **clear seams, safer refactors, and better testability**—without fighting Laravel.
+### 🧭 What is DDD-Lite?
+
+**DDD-Lite** is a developer-tooling package that helps you organise your Laravel 12+ application into **modular, domain-oriented boundaries**.
+
+It gives you:
+
+- A **module structure** (`modules/<ModuleName>`) with a clear split between:
+  - `App/` – adapters & Laravel-specific glue (controllers, requests, models, providers, repositories)
+  - `Domain/` – pure PHP domain code (DTOs, actions, contracts, queries, value objects)
+- **Generators** for:
+  - DTOs, Actions, Contracts, Repositories, Value Objects
+  - Queries and Query Builders
+  - Aggregate Roots
+  - Controllers, Requests, Models, Migrations, Providers, Routes
+- A **conversion engine** to move existing `app/*` code into modules:
+  - Discovers move candidates (controllers, models, requests, actions, DTOs, contracts)
+  - Applies moves with AST-based namespace rewrites
+- **Safety rails** for all file operations:
+  - Every run produces a **Manifest** (with creates/updates/deletes/moves/mkdirs)
+  - `--dry-run` on everything
+  - **Rollback** by manifest id
+- **Quality & CI tooling**:
+  - Publishable PHPStan & Deptrac configs
+  - Optional Pest architecture tests
+  - `ddd-lite:doctor` / `ddd-lite:doctor:domain` / `ddd-lite:doctor-ci` to keep modules healthy
+
+The goal is: **clean seams, safer refactors, better testability** – without requiring you to rewrite your entire app in one go.
+
+---
 
 ## 🧱 Architecture Overview
 
-A **DDD-Lite Module** lives under:
+A DDD-Lite **module** lives under `modules/<ModuleName>`:
 
-```markdown
+```text
 modules/<ModuleName>/
 ├─ App/
-│ ├─ Http/
-│ │ ├─ Controllers/
-│ │ └─ Requests/
-│ ├─ Models/
-│ ├─ Providers/
-│ └─ Repositories/
+│  ├─ Http/
+│  │  ├─ Controllers/
+│  │  └─ Requests/
+│  ├─ Models/
+│  ├─ Providers/
+│  └─ Repositories/
 ├─ Domain/
-│ ├─ Actions/
-│ ├─ Contracts/
-│ ├─ DTO/
-│ └─ Queries/
+│  ├─ Actions/
+│  ├─ Contracts/
+│  ├─ DTO/
+│  ├─ Queries/
+│  └─ ValueObjects/
 ├─ Database/
-│ └─ migrations/
+│  └─ migrations/
 ├─ Routes/
-│ ├─ api.php
-│ └─ web.php
+│  ├─ api.php
+│  └─ web.php
 └─ tests/
-├─ Feature/
+   ├─ Feature/
+   └─ Unit/
 └─ Unit/
 ```
 
-✅ Rules this package helps you enforce
+✅ Rules of thumb
 
-- **Domain purity**
-    - Domain/Actions, Domain/Contracts, Domain/DTO, and Domain/Queries have **no Laravel runtime dependencies** (only PHP + contracts).
-- **App wiring**
-    - App/Repositories satisfy Domain/Contracts (infrastructure).
-    - App/Http/Controllers are thin orchestrators.
-- **IDs & DTOs**
-    - Actions input/output are **ID/DTO** centric—no fat Eloquent models crossing domain boundaries.
-- **Bounded modules**
-    - Each module has its own providers & routes, registered via bootstrap/app.php.
-- **Safety rails**
-    - Generators use a **manifest** (with trackCreate/Update/Delete/Move/Mkdir) and support --dry-run and **rollback**.
-- **Consistency**
-    - All commands follow the same **BaseCommand + Manifest** workflow:
-        - prepare → summary → dry-run branch → single manifest on write → track* ops → save → rollback on failure.
+**Domain:**
+  - Pure PHP, no hard dependency on Laravel.
+  - Orchestrates use cases with Actions (e.g. CreateTripAction).
+  - Talks to the outside world through Contracts (e.g. TripRepositoryContract).
+  - Uses DTOs and Value Objects for data.
+
+**App:**
+  - Typical Laravel adapters (controllers, form requests, models).
+  - Implements contracts using Eloquent (e.g. TripRepository).
+  - Wires things together using module service providers.
+
+### ⚙️ Requirements
+-	PHP: ^8.3
+-	Laravel (Illuminate components): ^12.0
+-	Composer
+
+Recommended dev dependencies in your app (for quality tooling integration):
+  -	larastan/larastan
+  -	deptrac/deptrac
+  -	pestphp/pest
+  -	pestphp/pest-plugin-laravel
+  -	pestphp/pest-plugin-arch
 
 ### ⚙️ Installation
+Require the package in your Laravel app (usually as a dev dependency):
 
 ```bash
 composer require creativecrafts/laravel-domain-driven-design-lite --dev
 ```
 
-> This is a developer tool (scaffolding, doctoring, CI helpers), so --dev is recommended.
+> This package is primarily a developer tool (scaffolding, conversion, quality helpers), so installing under --dev is recommended.
+Laravel’s package discovery will automatically register the service provider.
 
-### Provider & Publishing
+### 📦 Provider & Publishing
 
-The package service provider is auto-discovered. To publish quality configs (PHPStan, Deptrac, Pest arch rules, etc.):
+DDD-Lite ships with stubs and quality configs you can copy into your app.
+
+**Stubs (module scaffolding & generators)**
+
+To publish the stubs:
 
 ```bash
-php artisan vendor:publish --tag=ddd-lite-quality
+php artisan vendor:publish --tag=ddd-lite
+php artisan vendor:publish --tag=ddd-lite-stubs
+```
+This will create:
+- stubs/ddd-lite/*.stub – templates for:
+- DTOs, Actions, Contracts, Repositories, Value Objects, Aggregates
+- Controllers (including an --inertia variant)
+- Requests
+- Models & migrations
+- Module providers and route/event providers
+- Routes (web & api)
+
+You typically don’t need to touch these unless you want to customise the generated code style.
+
+**Quality tooling**
+
+To seed PHPStan, Deptrac and Pest architecture tests into your application:
+
+```bash
+php artisan ddd-lite:publish:quality --target=all
+```
+This will (in your app):
+- Create phpstan.app.neon with sensible defaults for app/ + modules/
+- Create deptrac.app.yaml describing layer boundaries (Http, Models, Domain, Modules, etc.)
+- Add tests/ArchitectureTest.php with some baseline rules:
+- No debug helpers (dd, dump, var_dump, …)
+- No stray env() calls
+- Enforce strict types
+
+You can also publish selectively:
+
+```bash
+php artisan ddd-lite:publish:quality --target=phpstan
+php artisan ddd-lite:publish:quality --target=deptrac
+php artisan ddd-lite:publish:quality --target=pest-arch
 ```
 
-> By default, this publishes:
-> - phpstan.neon.dist
-> - deptrac.package.yaml (package rules)
-> - stubs/deptrac/deptrac.app.yaml (app rules to publish into consuming apps)
-> - Pest arch rules under tests/Architecture/* (optional)
-
 ## 🚀 Getting Started (QuickStart)
+
+We’ll build a simple Planner module with a Trip aggregate.
 
 **1) Scaffold a module**
 
@@ -86,533 +159,451 @@ php artisan ddd-lite:module Planner --aggregate=Trip
 ```
 
 This creates modules/Planner with:
-
-- Providers (module, route, event)
-- Routes (api.php, web.php)
-- ULID model (App/Models/Trip.php) + migration
-- Domain DTOs & repository contract
+- Providers (module, route, event) under App/Providers
+- Routes in Routes/api.php and Routes/web.php
+- A ULID Eloquent model (App/Models/Trip.php) plus migrations in Database/migrations
+- Domain DTOs and a repository contract
 - Tests folders
 
-> Flags you can add: --dry-run (preview, no writes), --force (overwrite), --fix-psr4 (normalize folder casing), --rollback=<manifest-id>.
+Core flags:
+- --dry-run – preview actions without writing
+- --fix-psr4 – auto-rename lowercased module folders to proper PascalCase
+- --rollback=<manifest-id> – undo a previous scaffold
+- --force – overwrite content when needed (with backups)
 
-**2) Generate domain code**
+> For full details see: docs/module-scaffold.md
 
-```bash
-# VOs => creates modules/Planner/Domain/ValueObjects/Email.php
-php artisan ddd-lite:make:value-object Planner Email --scalar=string
-
-# DTOs
-php artisan ddd-lite:make:dto Planner CreateTripData
-php artisan ddd-lite:make:dto Planner TripData
-
-# Domain Action
-php artisan ddd-lite:make:action Planner CreateTripAction
-
-# Contract + Eloquent repository
-php artisan ddd-lite:make:contract Planner TripRepositoryContract
-php artisan ddd-lite:make:repository Planner TripRepository
-```
-
-**3) Generate HTTP Controller & Request**
+**2) Generate a DTO**
 
 ```bash
-php artisan ddd-lite:make:request Planner StoreTripRequest
-php artisan ddd-lite:make:controller Planner TripController --inertia=false
+php artisan ddd-lite:make:dto Planner CreateTripData \
+  --props="id:Ulid|nullable,title:string,startsAt:CarbonImmutable,endsAt:CarbonImmutable"
 ```
+This generates modules/Planner/Domain/DTO/CreateTripData.php:
+- Properly typed constructor
+- readonly by default
+- Optional unit test (unless --no-test is passed)
 
-**4) Bind contract to implementation**
+**3) Generate a domain Action**
 
 ```bash
-php artisan ddd-lite:bind Planner TripRepositoryContract App\\Repositories\\TripRepository
+php artisan ddd-lite:make:action Planner CreateTrip \
+  --in=Trip \
+  --input=FQCN --param=data \
+  --returns=ulid
 ```
-
-> This updates the module provider with an app container binding.
-
-- Checks provider placement, routing consistency, and file/class naming mismatches.
-- In CI, use ddd-lite:doctor:ci for schema-stable JSON and a non-zero exit on policy.
-
-## 🧠 DDD-Lite in the Real World: “Booking a Trip”
-
-We’ll walk a realistic flow—from **DTO → Action → Repository → Controller → Route**—inside the Planner module.
-**1) Domain DTO**
-
+This creates Domain/Actions/Trip/CreateTripAction.php similar to:
 ```php
-<?php
-// modules/Planner/Domain/DTO/CreateTripData.php
-
-declare(strict_types=1);
-
-namespace Modules\Planner\Domain\DTO;
-
-final class CreateTripData
-{
-    public function __construct(
-        public string $destination,
-        public \DateTimeImmutable $startDate,
-        public \DateTimeImmutable $endDate,
-        public ?string $notes = null,
-    ) {}
-}
-```
-
-**2) Domain Contract**
-
-```php
-<?php
-// modules/Planner/Domain/Contracts/TripRepositoryContract.php
-
-declare(strict_types=1);
-
-namespace Modules\Planner\Domain\Contracts;
-
-use Modules\Planner\Domain\DTO\CreateTripData;
-
-interface TripRepositoryContract
-{
-    public function create(CreateTripData $data): string; // Returns ULID
-    public function exists(string $tripId): bool;
-}
-```
-
-**3) Domain Action**
-
-```php
-<?php
-// modules/Planner/Domain/Actions/CreateTripAction.php
-
-declare(strict_types=1);
-
-namespace Modules\Planner\Domain\Actions;
+namespace Modules\Planner\Domain\Actions\Trip;
 
 use Modules\Planner\Domain\Contracts\TripRepositoryContract;
 use Modules\Planner\Domain\DTO\CreateTripData;
 
 final class CreateTripAction
 {
-    public function __construct(private TripRepositoryContract $repo) {}
+    public function __construct(
+        private TripRepositoryContract $repo,
+    ) {}
 
     public function __invoke(CreateTripData $data): string
     {
-        // Domain invariants would live here
+        // Domain invariants live here
         return $this->repo->create($data);
     }
 }
 ```
 
-**4) App Eloquent Model**
-
-```php
-<?php
-// modules/Planner/App/Models/Trip.php
-
-declare(strict_types=1);
-
-namespace Modules\Planner\App\Models;
-
-use Illuminate\Database\Eloquent\Concerns\HasUlids;
-use Illuminate\Database\Eloquent\Model;
-
-final class Trip extends Model
-{
-    use HasUlids;
-
-    protected string $table = 'trips';
-
-    public bool $incrementing = false;
-    protected string $keyType = 'string';
-
-    protected $fillable = ['destination', 'start_date', 'end_date', 'notes'];
-}
-```
-
-**5) App Repository (Eloquent)**
-
-```php
-<?php
-// modules/Planner/App/Repositories/TripRepository.php
-
-declare(strict_types=1);
-
-namespace Modules\Planner\App\Repositories;
-
-use Illuminate\Support\Str;
-use Modules\Planner\App\Models\Trip;
-use Modules\Planner\Domain\Contracts\TripRepositoryContract;
-use Modules\Planner\Domain\DTO\CreateTripData;
-
-final class TripRepository implements TripRepositoryContract
-{
-    public function create(CreateTripData $data): string
-    {
-        /** @var Trip $trip */
-        $trip = new Trip();
-        $trip->id = (string) Str::ulid();
-        $trip->destination = $data->destination;
-        $trip->start_date = $data->startDate->format('Y-m-d');
-        $trip->end_date = $data->endDate->format('Y-m-d');
-        $trip->notes = $data->notes;
-        $trip->save();
-
-        return $trip->id;
-    }
-
-    public function exists(string $tripId): bool
-    {
-        return Trip::query()->whereKey($tripId)->exists();
-    }
-}
-```
-
-**6) Provider binding**
-
-```php
-<?php
-// modules/Planner/App/Providers/PlannerServiceProvider.php
-
-declare(strict_types=1);
-
-namespace Modules\Planner\App\Providers;
-
-use Illuminate\Support\ServiceProvider;
-use Modules\Planner\App\Repositories\TripRepository;
-use Modules\Planner\Domain\Contracts\TripRepositoryContract;
-
-final class PlannerServiceProvider extends ServiceProvider
-{
-    public function register(): void
-    {
-        $this->app->bind(TripRepositoryContract::class, TripRepository::class);
-    }
-}
-```
-
-**7) HTTP Request**
-
-```php
-<?php
-// modules/Planner/App/Http/Requests/StoreTripRequest.php
-
-declare(strict_types=1);
-
-namespace Modules\Planner\App\Http\Requests;
-
-use Illuminate\Foundation\Http\FormRequest;
-
-final class StoreTripRequest extends FormRequest
-{
-    public function rules(): array
-    {
-        return [
-            'destination' => ['required', 'string', 'max:255'],
-            'start_date'  => ['required', 'date'],
-            'end_date'    => ['required', 'date', 'after_or_equal:start_date'],
-            'notes'       => ['nullable', 'string'],
-        ];
-    }
-}
-```
-
-**8) Controller (thin)**
-
-```php
-<?php
-// modules/Planner/App/Http/Controllers/TripController.php
-
-declare(strict_types=1);
-
-namespace Modules\Planner\App\Http\Controllers;
-
-use Illuminate\Http\JsonResponse;
-use Modules\Planner\App\Http\Requests\StoreTripRequest;
-use Modules\Planner\Domain\Actions\CreateTripAction;
-use Modules\Planner\Domain\DTO\CreateTripData;
-
-final class TripController
-{
-    public function store(StoreTripRequest $request, CreateTripAction $action): JsonResponse
-    {
-        $data = new CreateTripData(
-            destination: $request->string('destination')->toString(),
-            startDate: new \DateTimeImmutable($request->date('start_date')->format('Y-m-d')),
-            endDate: new \DateTimeImmutable($request->date('end_date')->format('Y-m-d')),
-            notes: $request->string('notes')->nullOrValue(),
-        );
-
-        $id = $action($data);
-
-        return response()->json(['id' => $id], 201);
-    }
-}
-```
-
-**9) API Routing**
-
-```php
-<?php
-// modules/Planner/Routes/api.php
-
-use Illuminate\Support\Facades\Route;
-use Modules\Planner\App\Http\Controllers\TripController;
-
-Route::prefix('planner')->group(function () {
-    Route::post('trips', [TripController::class, 'store']);
-});
-```
-
-> This exposes POST /api/planner/trips in your app’s API namespace.
-
-### 🔄 Example: Converting RegisteredUserController → CreateUserAction
-
-**Before (fat controller)**
-
-```php
-<?php
-// app/Http/Controllers/Auth/RegisteredUserController.php
-
-public function store(Request $request)
-{
-    $request->validate([
-        'name' => ['required', 'string'],
-        'email' => ['required', 'email', 'unique:users,email'],
-        'password' => ['required', 'confirmed', Password::defaults()],
-    ]);
-
-    $user = User::create([
-        'name' => $request->string('name'),
-        'email' => $request->string('email'),
-        'password' => Hash::make($request->string('password')),
-    ]);
-
-    event(new Registered($user));
-    Auth::login($user);
-
-    return redirect(RouteServiceProvider::HOME);
-}
-```
-
-**After (DDD-Lite module Auth)**
-
-```php
-<?php
-// modules/Auth/Domain/DTO/CreateUserData.php
-final class CreateUserData { /* name, email, password (hashed or plain based on policy) */ }
-
-// modules/Auth/Domain/Contracts/UserRepositoryContract.php
-interface UserRepositoryContract { public function create(CreateUserData $data): string; }
-
-// modules/Auth/Domain/Actions/CreateUserAction.php
-final class CreateUserAction {
-    public function __construct(private UserRepositoryContract $repo) {}
-    public function __invoke(CreateUserData $data): string {
-        return $this->repo->create($data);
-    }
-}
-
-// modules/Auth/App/Repositories/UserRepository.php
-final class UserRepository implements UserRepositoryContract {
-    public function create(CreateUserData $data): string { /* Eloquent create + return ULID */ }
-}
-
-// modules/Auth/App/Http/Controllers/RegisterController.php
-public function store(RegisterRequest $request, CreateUserAction $action): RedirectResponse {
-    $id = $action(new CreateUserData(...));
-    Auth::loginUsingId($id);
-    return redirect()->route('home');
-}
-```
-
-✅ **Benefits**
-
-- Controllers become thin and testable.
-- Domain logic is **independent** and portable.
-- Repositories hide persistence.
-- DTOs define the **language** of your domain.
-
-> That’s the DDD-Lite promise: same feature, clean separation, safer to evolve.
-
-## 🧰 Command Reference
-
-All generator/fixer commands follow the **same UX and safety rails:**
-
-- --dry-run → print plan; no changes; no manifest written.
-- --force → overwrite when content differs (creates **backup**).
-- --rollback=<manifest-id> → revert previous run by manifest.
-- Deterministic, idempotent output.
-
-**Module scaffolding**
+**4) Implement the repository & bind it**
+Create an Eloquent repository in modules/Planner/App/Repositories/TripRepository.php (or let ddd-lite:make:repository scaffold it):
 
 ```bash
-php artisan ddd-lite:module <Name> [--aggregate=Aggregate] [--dry-run] [--force] [--fix-psr4] [--rollback=<id>]
+php artisan ddd-lite:make:repository Planner Trip
 ```
+Then wire the contract to the implementation:
+```bash
+php artisan ddd-lite:bind Planner TripRepositoryContract TripRepository
+```
+ddd-lite:bind edits your module provider so that:
+```php
+$this->app->bind(
+    TripRepositoryContract::class,
+    TripRepository::class,
+);
+```
+is registered.
 
-**Domain generators**
+**5) Expose via HTTP**
+Generate a controller + request:
 
 ```bash
-php artisan ddd-lite:make:dto <Module> <Name> [--dry-run] [--force] [--rollback=<id>]
-php artisan ddd-lite:make:action <Module> <Name> [--dry-run] [--force] [--rollback=<id>]
-php artisan ddd-lite:make:contract <Module> <Name> [--dry-run] [--force] [--rollback=<id>]
-php artisan ddd-lite:make:model <Module> <Name> [--fillable=...] [--guarded=...] [--soft-deletes] [--no-timestamps] [--dry-run] [--force] [--rollback=<id>]
-php artisan ddd-lite:make:repository <Module> <Name> [--dry-run] [--force] [--rollback=<id>]
-php artisan ddd-lite:make:request <Module> <Name> [--dry-run] [--force] [--rollback=<id>]
-php artisan ddd-lite:make:controller <Module> <Name> [--inertia] [--dry-run] [--force] [--rollback=<id>]
-php artisan ddd-lite:make:provider <Module> <Type=Route|Event> [--dry-run] [--force] [--rollback=<id>]
-
-# Query side (optional)
-php artisan ddd-lite:make:query <Module> <Name> [...]
-php artisan ddd-lite:make:query-builder <Module> <Name> [...]
-php artisan ddd-lite:make:query-aggregator <Module> <Name> [...]
+php artisan ddd-lite:make:controller Planner Trip --resource
+php artisan ddd-lite:make:request Planner StoreTrip
 ```
 
-**Bindings & conversion**
+### 🧠 DDD-Lite in Practice: Example Flow
+
+A typical “vertical slice” in a module:
+- **DTO:** CreateTripData – validated input from HTTP or CLI.
+- **Action:** CreateTripAction – orchestrates creation, enforces invariants.
+- **Contract:** TripRepositoryContract – interface for persistence.
+- **Repository:** TripRepository (Eloquent) – implements contract.
+- **Controller:** TripController@store – adapts HTTP to the action.
+
+Generators help you keep this shape consistent across modules without hand-rolling boilerplate every time.
+
+### 🧰 Command Reference
+
+All commands share a consistent UX:
+- --dry-run – print what would happen; no files written; no manifest saved.
+- --force – overwrite when content changes (backups are tracked in manifests).
+- --rollback=<manifest-id> – revert a previous run (see Manifest section below).
+
+**1. Module scaffolding & conversion**
+
+**ddd-lite:module**
+Scaffold a new module skeleton:
+```bash
+php artisan ddd-lite:module Planner
+```
+Key flags:
+- name (required) – module name in PascalCase.
+- --dry-run – preview only.
+- --force – overwrite files if they exist.
+- --fix-psr4 – rename existing lowercased module folders to PSR-4 PascalCase.
+- --rollback=<id> – rollback a previous scaffold.
+
+See docs/module-scaffold.md￼ for details.
+
+**ddd-lite:convert**
+Discover and optionally apply moves from app/* into modules:
+```bash
+php artisan ddd-lite:convert Planner \
+  --plan-moves \
+  --paths=app/Http/Controllers,app/Models
+```
+> To use the namespace rewriting and AST-based moves, install nikic/php-parser:
+
+> composer require --dev nikic/php-parser
+
+Important options:
+- module – target module name.
+- --plan-moves – discover move candidates and print a plan (no writes).
+- --apply-moves – actually apply moves (AST-safe namespace rewrites).
+- --review – interactive confirmation per move (with --apply-moves).
+- --all – apply all moves without prompts.
+- --only=controllers,models,requests,actions,dto,contracts – include kinds.
+- --except=... – exclude kinds.
+- --paths=... – comma-separated paths to scan.
+- --with-shims – include shim suggestions in the printed plan.
+- --export-plan=path.json – write discovered move plan to JSON.
+- --dry-run, --force, --rollback=<id>.
+
+Use this to gradually migrate a legacy app into DDD-Lite modules.
+
+**2. Domain generators**
+
+**ddd-lite:make:dto**
+Generate a DTO under Domain/DTO:
+```bash
+php artisan ddd-lite:make:dto Planner CreateTripData \
+  --in=Trip \
+  --props="id:Ulid|nullable,title:string,startsAt:CarbonImmutable"
+```
+- module – module name.
+- name – DTO class name.
+- --in= – optional subnamespace inside Domain/DTO.
+- --props= – name:type[|nullable] comma-separated.
+- --readonly – enforce readonly class (default: true).
+- --no-test – skip generating a test.
+
+**ddd-lite:make:action**
+Generate a domain action in Domain/Actions:
+```bash
+php artisan ddd-lite:make:action Planner CreateTrip \
+  --in=Trip \
+  --input=FQCN --param=data \
+  --returns=ulid
+```
+- --in= – optional subnamespace.
+- --method= – method name (default __invoke).
+- --input= – parameter type preset: none|ulid|FQCN.
+- --param= – parameter variable name.
+- --returns= – void|ulid|FQCN.
+- --no-test – skip test.
+
+**ddd-lite:make:contract**
+Generate a domain contract:
+```bash
+php artisan ddd-lite:make:contract Planner TripRepository \
+  --in=Trip \
+  --methods="find:TripData|null(id:Ulid); create:TripData(data:TripCreateData)"
+```
+- --methods= – semi-colon separated: name:ReturnType(args...).
+- --with-fake – generate a Fake implementation under tests/Unit/fakes.
+- --no-test – skip the contract test.
+
+**ddd-lite:make:repository**
+Generate an Eloquent repository for an aggregate:
+```bash
+php artisan ddd-lite:make:repository Planner Trip
+```
+Creates:
+- App/Repositories/TripRepository.php
+- Optional tests (unless --no-test).
+
+**ddd-lite:make:value-object**
+Generate a value object:
+```bash
+php artisan ddd-lite:make:value-object Planner Email \
+  --scalar=string
+```
+- --scalar= – backing scalar type: string|int|float|bool.
+
+**ddd-lite:make:aggregate-root**
+Generate an aggregate root base:
+```bash
+php artisan ddd-lite:make:aggregate-root Planner Trip
+```
+Useful for richer domain modelling around key aggregates.
+
+**Query side**
+- ddd-lite:make:query – generate a Query class in Domain/Queries.
+- ddd-lite:make:query-builder – generate a QueryBuilder helper.
+- ddd-lite:make:aggregator – generate an Aggregator to combine queries.
+
+Example:
+```bash
+php artisan ddd-lite:make:query Planner TripIndexQuery
+php artisan ddd-lite:make:query-builder Planner Trip
+php artisan ddd-lite:make:aggregator Planner TripIndexAggregator
+```
+
+**3. App-layer generators**
+
+**ddd-lite:make:model**
+Generate an Eloquent model in App/Models:
+```bash
+php artisan ddd-lite:make:model Planner Trip \
+  --table=trips \
+  --fillable="title,starts_at,ends_at"
+```
+Options:
+- --table=, --fillable=, --guarded=
+- --soft-deletes
+- --no-timestamps
+
+**ddd-lite:make:migration**
+Generate a migration under Database/migrations:
+```bash
+php artisan ddd-lite:make:migration Planner create_trips_table --create=trips
+```
+- module? – module name (optional).
+- name? – migration base name.
+- --table= – table name.
+- --create= – shortcut for table creation.
+- --path= – override path (defaults to module migrations).
+- --force, --dry-run, --rollback=<id>.
+
+**ddd-lite:make:controller**
+Generate a controller:
+```bash
+php artisan ddd-lite:make:controller Planner Trip --resource
+```
+- --resource – standard Laravel resource methods.
+- --inertia – generate methods that return Inertia pages.
+- --suffix= – class suffix (default Controller).
+
+**ddd-lite:make:request**
+Generate a form request:
+```bash
+php artisan ddd-lite:make:request Planner StoreTrip
+```
+- --suffix= – class suffix (default Request).
+
+**4. Binding & wiring**
+
+**ddd-lite:bind**
+Bind a domain contract to an implementation in the module provider:
 
 ```bash
-php artisan ddd-lite:bind <Module> <ContractFQCN> <ImplementationFQCN> [--dry-run] [--force] [--rollback=<id>]
-
-php artisan ddd-lite:convert [--apply-moves] [--dry-run] [--rollback=<id>]
-# discovers legacy App classes, proposes/executes Moves to module namespaces (AST-safe), registers providers, and records a single manifest.
+php artisan ddd-lite:bind Planner TripRepositoryContract TripRepository
 ```
+- module – module name.
+- contract – contract short name or FQCN.
+- implementation – implementation short name or FQCN.
+- --force – skip class existence checks (e.g. when generating ahead of time).
 
-**Doctor & CI**
+**5. Manifest commands**
+Every write operation (scaffolding, generate, convert, publish, doctor fixes) is tracked via a **Manifest**.
+
+**ddd-lite:manifest:list**
+List manifests:
 
 ```bash
-php artisan ddd-lite:doctor [--fix] [--json]
-php artisan ddd-lite:doctor:ci [--json] [--fail-on=warning|error]
+php artisan ddd-lite:manifest:list --module=Planner --type=create --json
 ```
+Options:
+- --module= – filter by module.
+- --type= – mkdir|create|update|delete|move.
+- --after=, --before= – ISO8601 bounds for created_at.
+- --json – machine-readable output.
+
+**ddd-lite:manifest:show**
+Inspect a single manifest:
+
+```bash
+php artisan ddd-lite:manifest:show 2025-11-24-13-54-01 --json
+```
+Shows the tracked operations for that run (created files, backups, moves, deletions, etc.).
+
+**6. Doctor & Quality commands**
+
+**ddd-lite:publish:quality**
+(Described earlier) – publishes PHPStan, Deptrac, and Pest Arch configuration/stubs into your app.
+
+**ddd-lite:doctor**
+Run structural checks on your modules and wiring:
+
+```bash
+php artisan ddd-lite:doctor --module=Planner --json
+```
+Checks things like:
+- Module provider registration
+- Route/service provider wiring
+- PSR-4 inconsistencies
+- Missing or mis-wired module components
+
+Flags:
+- --module= – limit to a specific module.
+- --fix – attempt automatic fixes (provider edits, PSR-4 renames, etc.).
+- --json – JSON report for tooling.
+- --prefer=file|class – strategy when class and filename mismatch.
+- --rollback=<id> – undo fixes.
+
+**ddd-lite:doctor:domain**
+Run domain purity checks via Deptrac:
+
+```bash
+php artisan ddd-lite:doctor:domain \
+  --config=deptrac.app.yaml \
+  --bin=vendor/bin/deptrac \
+  --json \
+  --fail-on=violations
+```
+
+Options:
+- --config= – Deptrac YAML config.
+- --bin= – path to deptrac executable.
+- --json – JSON summary.
+- --strict – treat uncovered as failure.
+- --stdin-report= – use pre-generated Deptrac JSON report.
+- --fail-on= – violations|errors|uncovered|any.
+
+**ddd-lite:doctor-ci**
+Run both structural and domain checks in CI:
+
+```bash
+php artisan ddd-lite:doctor-ci --json --fail-on=error
+```
+- --paths= – paths to scan (defaults to modules/ and bootstrap/app.php).
+- --fail-on=none|any|error – CI failure policy.
+- --json – CI-friendly JSON result.
+
+Use this in your CI pipeline to enforce module health.
 
 ### 🧪 Safety Rails: Manifest & Rollback
 
-Every write operation (except --dry-run) is tracked as **atomic actions**:
+DDD-Lite never silently edits your app.
 
-- trackMkdir(path)
-- trackCreate(path)
-- trackUpdate(path, backupPath)
-- trackDelete(path)
-- trackMove(from, to)
+For each command run that changes files:
+- A **Manifest** is written with:
+- mkdir, create, update, delete, move records
+- Backups of overwritten files
+- You can inspect manifests with:
+- ddd-lite:manifest:list
+- ddd-lite:manifest:show {id}
+- You can revert a run by passing --rollback=<manifest-id> to the original command (e.g. ddd-lite:module, ddd-lite:convert, ddd-lite:publish:quality, ddd-lite:doctor).
 
-Manifests live under storage/app/ddd-lite_scaffold/manifests/<id>.json. To rollback:
+This makes DDD-Lite safe to use on large, existing codebases.
+
+### 🧮 Package Quality: PHPStan, Deptrac & Pest
+
+Inside this package:
+- phpstan.neon.dist – strict rules for the package itself.
+- deptrac.package.yaml – package-level dependency rules.
+- tests/ArchTest.php – baseline architecture checks via Pest.
+
+In your **application,** use:
+```bash
+php artisan ddd-lite:publish:quality --target=all
+```
+and then:
 
 ```bash
-php artisan ddd-lite:make:action Planner DoThing --rollback=<manifest-id>
+# In your app
+vendor/bin/phpstan analyse -c phpstan.app.neon
+vendor/bin/deptrac --config=deptrac.app.yaml
+php artisan test tests/ArchitectureTest.php
 ```
+Combine this with ddd-lite:doctor-ci in CI for a tight feedback loop.
 
-> Rollback restores backups, deletes created files, moves files back, and tidies directories as needed. Tests ensure idempotency.
+### 🧩 Common Workflows
 
-### 🧮 Quality: PHPStan, Deptrac & Pest Architecture
+Greenfield project
+- Install DDD-Lite.
+- Scaffold your first module: ddd-lite:module.
+- Generate DTOs, Actions, Contracts, Repositories, Controllers, Requests.
+- Set up quality tooling with ddd-lite:publish:quality.
+- Wire ddd-lite:doctor-ci into your CI.
 
-**PHPStan (Larastan)**
-
-- Published phpstan.neon.dist includes strict rules tuned for this package.
-- Run:
-
-```bash
-composer stan
-```
-
-**Deptrac (layer boundaries)**
-We ship **two configs**:
-
-1. **Package (this repo)** — deptrac.package.yaml
-    - Ensures Console depends on Support, not vice-versa; prevents accidental circular deps.
-2. **App (for consumers)** — stubs/deptrac/deptrac.app.yaml
-
-- Users publish this into their app to enforce:
-    - Domain layers don’t depend on App layers.
-    - Domain/* has no Laravel runtime imports.
-    - Repositories implement contracts from Domain only.
-
-Run:
-
-```bash
-composer deptrac          # package rules
-# and for apps, after publish:
-vendor/bin/deptrac --config=deptrac.yaml
-```
-
-**Pest Architecture Tests**
-
-We include optional Pest architecture tests that mirror Deptrac’s layers in a code-first way.
-They’re resilient and fast, and great for teams that prefer build-in checks alongside Deptrac.
-
-## 🧑‍🍳 Getting Started Example Project
-
-For a fast demo:
-
-1. New Laravel app
-2. composer require creativecrafts/laravel-domain-driven-design-lite --dev
-3. php artisan ddd-lite:module Planner --aggregate=Trip
-4. php artisan migrate
-5. Add route in your app’s routes/api.php (or rely on module’s own Routes/api.php)
-6. php artisan serve
-
-You now have a /api/planner/trips POST endpoint that uses the DDD-Lite flow.
-
-## 🧩 Common Workflows
-
-**Preview vs. Apply**
-
-```bash
-php artisan ddd-lite:make:dto Planner TripData --dry-run
-# prints a plan but does not write
-
-php artisan ddd-lite:make:dto Planner TripData
-# applies changes and prints Manifest: <id>
-```
-
-**Rollback**
-
-```bash
-php artisan ddd-lite:make:dto Planner TripData --rollback=<manifest-id>
-```
-
-**Overwrite safely**
-
-```bash
-php artisan ddd-lite:make:model Planner Trip --force
-# if content changed, a backup is written and tracked
-```
+Migrating a legacy app
+- Install DDD-Lite.
+- Scaffold a module for a coherent slice (e.g. Planner, Billing, Users).
+- Use ddd-lite:convert with --plan-moves on a subset of app/*.
+- Iterate with --apply-moves and --review, keeping an eye on manifests.
+- Introduce contracts + repositories for areas you want to harden.
+- Run ddd-lite:doctor and ddd-lite:doctor:domain regularly during the migration.
 
 ### 🧪 Testing Philosophy
 
-```bash
-composer test
-```
+The package itself is tested with:
+- **Pest** for:
+  - Feature tests of console commands
+  - Unit tests for internals (filesystem, manifests, planners)
+- Architecture tests to protect boundaries.
 
-- Feature tests cover generator commands end-to-end.
-- No tests for baseline Laravel features.
-- Idempotency tests ensure “no changes” on re-runs unless --force.
+You’re encouraged to:
+- Keep module tests close to modules (under modules/<Module>/tests).
+- Use the provided stubs for DTO / Action / Contract / Repository tests to keep patterns consistent.
 
-### 🔒 Design Principles Recap
+### 🔒 Design Principles
+- **Domain purity** – Domain/ should know nothing about Laravel.
+- **Explicit boundaries** – Domain <-> App contracts are interfaces, not facades.
+- **Safety first** – manifests, backups, --dry-run, --rollback.
+- **Deterministic generators** – running a command twice should be safe and idempotent.
+- **CI-friendly** – all checks and reports can be consumed by automation via JSON / exit codes.
 
-- **Consistency across commands:** same BaseCommand + Manifest flow.
-- **Deterministic output:** same inputs produce same files.
-- **Domain purity:** domain does not depend on Laravel runtime.
-- **Safety first:** --dry-run, backup on overwrite, rollback any time.
-- **Clarity & DX:** short closures, promoted properties, strict types, helpful console UX.
+### 🧰 Troubleshooting
+- “Nothing seems to happen when I run a command”
+  - Check if you passed --dry-run.
+  - Inspect manifests using ddd-lite:manifest:list.
+- “I messed up my module structure”
+  - Find the relevant manifest id: ddd-lite:manifest:list.
+  - Rerun the original command with --rollback=<id>.
+- “Deptrac or PHPStan fail after publishing quality configs”
+  - Make sure you installed the suggested dev dependencies in your app.
+  - Tweak phpstan.app.neon / deptrac.app.yaml to match your project’s structure.
 
-> If you’ve read this far, you’re ready to ship a healthier Laravel codebase.
-> Start with one feature, one module. Let DDD-Lite keep it honest.
 
-## 🧰 Troubleshooting
-
-- **“Manifest not found” on rollback**
-    - Ensure the manifest ID is correct and that the write run actually created one
-      (no manifest is written in --dry-run runs).
-- **“Module not found”**
-    - Scaffold first with ddd-lite:module or pass the correct Module argument.
-- **PSR-4 autoload can’t find module classes**
-    - Run composer dump-autoload -o. Our doctor can also fix PSR-4 casing issues.
-- **Deptrac violations explode**
-    - Use our published deptrac.app.yaml (for apps) and start by allowing temporary edges while refactoring.
-
-## Changelog
+### Changelog
 
 Please see [CHANGELOG](CHANGELOG.md) for more information on what has changed recently.
 
-## Security
+### Security
 
 Please review [our security policy](../../security/policy) on how to report security vulnerabilities.
 
-## 🙌 Credits
+### 🙌 Credits
 
 - [Godspower Oduose](https://github.com/rockblings)
 - [All Contributors](../../contributors)

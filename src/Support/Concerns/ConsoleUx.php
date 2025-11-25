@@ -33,14 +33,11 @@ trait ConsoleUx
      */
     protected function kv(string $key, string $value): void
     {
-        if (method_exists($this, 'twoColumn')) {
-            /** @phpstan-ignore-next-line */
-            $this->twoColumn($key, $value);
-            return;
-        }
-
+        // BaseCommand guarantees twoColumn() exists, so call directly in our package context.
+        // Fallback to a simple line() format if twoColumn is not available (defensive for reuse).
+        // Our commands extend BaseCommand which provides twoColumn(), so call directly.
         /** @phpstan-ignore-next-line */
-        $this->line(sprintf('%-24s %s', $key, $value));
+        $this->twoColumn($key, $value);
     }
 
     /**

@@ -4,7 +4,8 @@ declare(strict_types=1);
 
 use Illuminate\Filesystem\Filesystem;
 
-function qbUniqueSuffix(): string {
+function qbUniqueSuffix(): string
+{
     return strtoupper(substr(md5(uniqid('', true)), 0, 8));
 }
 
@@ -139,7 +140,7 @@ it('overwrites with --force and creates a backup', function (): void {
         /** @var array<int,array<string,string|null>> $actions */
         $actions = $json['actions'];
         $candidate = \collect($actions)->first(
-            fn($a) => ($a['type'] ?? null) === 'update'
+            fn ($a) => ($a['type'] ?? null) === 'update'
                 && ($a['path'] ?? null) === $relative
         );
 
@@ -156,7 +157,7 @@ it('overwrites with --force and creates a backup', function (): void {
 });
 
 it('supports rollback by manifest id', function (): void {
-    $fs = new Illuminate\Filesystem\Filesystem();
+    $fs = new Filesystem();
 
     $suffix = strtoupper(substr(md5(uniqid('', true)), 0, 8));
     $module = 'PlannerQB' . $suffix;

@@ -11,6 +11,7 @@ use JsonException;
 use Random\RandomException;
 use RuntimeException;
 use Symfony\Component\Console\Helper\ProgressBar;
+use Throwable;
 
 final class MakeRequestCommand extends BaseCommand
 {
@@ -37,7 +38,7 @@ final class MakeRequestCommand extends BaseCommand
         if ($rollback !== '') {
             try {
                 $m = $this->loadManifestOrFail($rollback);
-            } catch (RuntimeException $e) {
+            } catch (Throwable $e) {
                 $this->error($e->getMessage());
                 $this->warnBox('Rollback aborted.');
                 return self::FAILURE;

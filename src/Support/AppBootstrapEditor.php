@@ -137,6 +137,9 @@ final readonly class AppBootstrapEditor
         }
     }
 
+    /**
+     * @param array<string,string> $keyToValue
+     */
     public function ensureRoutingKeys(Manifest $manifest, array $keyToValue): void
     {
         $path = base_path('bootstrap/app.php');
@@ -174,7 +177,9 @@ final readonly class AppBootstrapEditor
         if ($withPos === false) {
             $injection = "    ->withRouting(\n";
             foreach ($keyToValue as $k => $v) {
-                $injection .= "        {$k}: {$v},\n";
+                $key = (string)$k;
+                $val = (string)$v;
+                $injection .= "        {$key}: {$val},\n";
             }
             $injection .= "    )\n";
             $newChain = $injection . $chainBeforeCreate;
@@ -203,7 +208,7 @@ final readonly class AppBootstrapEditor
         $args = $this->slice($src, $open + 1, $close - ($open + 1));
         $argsTrim = rtrim($args);
 
-        $missing = array_filter($keyToValue, static function ($k) use ($args) {
+        $missing = array_filter($keyToValue, static function (string $k) use ($args): bool {
             return !str_contains($args, $k . ':');
         }, ARRAY_FILTER_USE_KEY);
         if ($missing === []) {
@@ -258,8 +263,11 @@ final readonly class AppBootstrapEditor
 
             $start = $configurePos + $insertPos;
             $open = strpos($code, '[', $start);
+            if ($open === false) {
+                return $code;
+            }
             $close = strpos($code, ']', $open);
-            if ($open === false || $close === false) {
+            if ($close === false) {
                 return $code;
             }
 

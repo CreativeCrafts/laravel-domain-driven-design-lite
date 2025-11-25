@@ -6,7 +6,11 @@ namespace CreativeCrafts\DomainDrivenDesignLite\Console\Commands;
 
 use CreativeCrafts\DomainDrivenDesignLite\Console\BaseCommand;
 use JsonException;
+use RecursiveDirectoryIterator;
+use RecursiveIteratorIterator;
 use RuntimeException;
+use SplFileInfo;
+use FilesystemIterator;
 
 final class DoctorDomainCommand extends BaseCommand
 {
@@ -38,6 +42,9 @@ final class DoctorDomainCommand extends BaseCommand
             return $this->handleStdinReport($stdinReport, $failOn, $wantJson);
         }
 
+        // Conversion health is independent of Deptrac; compute it once here.
+        $conversionHealth = $this->analyzeConversionHealth();
+
         // Fast-fail on missing deptrac binary (this is what the failing test is exercising).
         if (!is_file($bin)) {
             $totals = [
@@ -61,11 +68,13 @@ final class DoctorDomainCommand extends BaseCommand
                     'strict' => $strict,
                     'exit_code' => 1,
                     'parse_error' => $message,
+                    'conversion_health' => $conversionHealth,
                 ];
 
                 $this->line(json_encode($payload, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
             } else {
                 $this->warnBox($message);
+                $this->renderConversionHealthSummary($conversionHealth);
             }
 
             return self::FAILURE;
@@ -101,12 +110,13 @@ final class DoctorDomainCommand extends BaseCommand
 
         if (is_array($decoded)) {
             $report = $decoded['report'] ?? $decoded;
-
-            $totals['violations'] = (int)($report['violationsCount'] ?? $report['violations'] ?? 0);
-            $totals['uncovered'] = (int)($report['uncoveredCount'] ?? $report['uncovered'] ?? 0);
-            $totals['warnings'] = (int)($report['warningsCount'] ?? $report['warnings'] ?? 0);
-            $totals['errors'] = (int)($report['errorsCount'] ?? $report['errors'] ?? 0);
-            $totals['allowed'] = (int)($report['allowedCount'] ?? $report['allowed'] ?? 0);
+            if (is_array($report)) {
+                $totals['violations'] = $this->extractInt($report, 'violationsCount', 'violations');
+                $totals['uncovered'] = $this->extractInt($report, 'uncoveredCount', 'uncovered');
+                $totals['warnings'] = $this->extractInt($report, 'warningsCount', 'warnings');
+                $totals['errors'] = $this->extractInt($report, 'errorsCount', 'errors');
+                $totals['allowed'] = $this->extractInt($report, 'allowedCount', 'allowed');
+            }
         }
 
         $failed = $exit !== 0
@@ -125,6 +135,7 @@ final class DoctorDomainCommand extends BaseCommand
                 'strict' => $strict,
                 'exit_code' => $exit,
                 'parse_error' => $parseError,
+                'conversion_health' => $conversionHealth,
             ];
 
             $this->line(json_encode($payload, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
@@ -158,6 +169,8 @@ final class DoctorDomainCommand extends BaseCommand
             if ($exit !== 0 && $totals['violations'] === 0 && $totals['errors'] === 0) {
                 $this->warnBox('Deptrac returned a non-zero exit (likely configured to fail on uncovered).');
             }
+
+            $this->renderConversionHealthSummary($conversionHealth);
         }
 
         return $failed ? self::FAILURE : self::SUCCESS;
@@ -204,16 +217,21 @@ final class DoctorDomainCommand extends BaseCommand
             $decoded = json_decode($reportJson, true, 512, JSON_THROW_ON_ERROR);
             $report = $decoded['report'] ?? $decoded;
 
-            $totals['violations'] = (int)($report['violations'] ?? $report['violationsCount'] ?? 0);
-            $totals['uncovered'] = (int)($report['uncovered'] ?? $report['uncoveredCount'] ?? 0);
-            $totals['warnings'] = (int)($report['warnings'] ?? $report['warningsCount'] ?? 0);
-            $totals['errors'] = (int)($report['errors'] ?? $report['errorsCount'] ?? 0);
-            $totals['allowed'] = (int)($report['allowed'] ?? $report['allowedCount'] ?? 0);
+            if (is_array($report)) {
+                $totals['violations'] = $this->extractInt($report, 'violations', 'violationsCount');
+                $totals['uncovered'] = $this->extractInt($report, 'uncovered', 'uncoveredCount');
+                $totals['warnings'] = $this->extractInt($report, 'warnings', 'warningsCount');
+                $totals['errors'] = $this->extractInt($report, 'errors', 'errorsCount');
+                $totals['allowed'] = $this->extractInt($report, 'allowed', 'allowedCount');
+            }
         } catch (JsonException $e) {
             $parseError = $e->getMessage();
         }
 
         $failed = $this->shouldFail($failOn, $totals, $parseError !== null);
+
+        // Conversion health is still relevant when consuming stdin.
+        $conversionHealth = $this->analyzeConversionHealth();
 
         if ($wantJson) {
             $payload = [
@@ -225,6 +243,7 @@ final class DoctorDomainCommand extends BaseCommand
                 'totals' => $totals,
                 'fail_on' => $failOn,
                 'parse_error' => $parseError,
+                'conversion_health' => $conversionHealth,
             ];
 
             $this->line(json_encode($payload, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
@@ -250,9 +269,30 @@ final class DoctorDomainCommand extends BaseCommand
             if ($parseError !== null) {
                 $this->warnBox('Could not parse Deptrac JSON report from stdin: ' . $parseError);
             }
+
+            $this->renderConversionHealthSummary($conversionHealth);
         }
 
         return $failed ? self::FAILURE : self::SUCCESS;
+    }
+
+    /**
+     * @param array<mixed,mixed> $arr
+     */
+    private function extractInt(array $arr, string ...$keys): int
+    {
+        foreach ($keys as $k) {
+            if (array_key_exists($k, $arr)) {
+                $v = $arr[$k];
+                if (is_int($v)) {
+                    return $v;
+                }
+                if (is_string($v) && is_numeric($v)) {
+                    return (int)$v;
+                }
+            }
+        }
+        return 0;
     }
 
     /**
@@ -296,5 +336,187 @@ final class DoctorDomainCommand extends BaseCommand
         $parseError ??= 'No JSON payload detected in Deptrac output.';
 
         return null;
+    }
+
+    /**
+     * Analyze basic "conversion health" by looking for legacy app/ classes
+     * that are still referenced from modules/*.
+     *
+     * @return array<string,mixed>
+     */
+    private function analyzeConversionHealth(): array
+    {
+        $legacyRoots = [
+            base_path('app/Http/Controllers'),
+            base_path('app/Http/Requests'),
+            base_path('app/Models'),
+            base_path('app/Actions'),
+            base_path('app/DTO'),
+            base_path('app/Contracts'),
+        ];
+
+        /** @var array<string,array{class:string,path:string}> $legacyMap */
+        $legacyMap = [];
+
+        foreach ($legacyRoots as $root) {
+            if (!is_dir($root)) {
+                continue;
+            }
+
+            $iterator = new RecursiveIteratorIterator(
+                new RecursiveDirectoryIterator($root, FilesystemIterator::SKIP_DOTS)
+            );
+
+            /** @var SplFileInfo $file */
+            foreach ($iterator as $file) {
+                if (!$file->isFile()) {
+                    continue;
+                }
+
+                if (strtolower($file->getExtension()) !== 'php') {
+                    continue;
+                }
+
+                $code = @file_get_contents($file->getPathname());
+                if ($code === false) {
+                    continue;
+                }
+
+                $namespace = null;
+                $className = null;
+
+                if (preg_match('/^namespace\s+([^;]+);/m', $code, $m)) {
+                    $namespace = trim($m[1]);
+                }
+
+                if (preg_match('/\b(class|interface|trait)\s+([A-Za-z_][A-Za-z0-9_]*)\b/', $code, $m)) {
+                    $className = $m[2];
+                }
+
+                if ($namespace === null || $className === null) {
+                    continue;
+                }
+
+                $fqn = $namespace . '\\' . $className;
+
+                $rel = str_replace('\\', '/', $file->getPathname());
+                $base = rtrim(str_replace('\\', '/', base_path()), '/');
+                if (str_starts_with($rel, $base . '/')) {
+                    $rel = substr($rel, strlen($base) + 1);
+                }
+
+                $legacyMap[$fqn] = [
+                    'class' => $fqn,
+                    'path' => $rel,
+                ];
+            }
+        }
+
+        if ($legacyMap === []) {
+            return [
+                'legacy_classes_in_app_referenced_from_modules' => [],
+                'legacy_classes_in_app_referenced_from_modules_count' => 0,
+            ];
+        }
+
+        $modulesRoot = base_path('modules');
+        if (!is_dir($modulesRoot)) {
+            return [
+                'legacy_classes_in_app_referenced_from_modules' => [],
+                'legacy_classes_in_app_referenced_from_modules_count' => 0,
+            ];
+        }
+
+        // Collect all module PHP files and their contents at once.
+        /** @var array<string,string> $moduleFiles */
+        $moduleFiles = [];
+
+        $modIterator = new RecursiveIteratorIterator(
+            new RecursiveDirectoryIterator($modulesRoot, FilesystemIterator::SKIP_DOTS)
+        );
+
+        /** @var SplFileInfo $file */
+        foreach ($modIterator as $file) {
+            if (!$file->isFile()) {
+                continue;
+            }
+
+            if (strtolower($file->getExtension()) !== 'php') {
+                continue;
+            }
+
+            $code = @file_get_contents($file->getPathname());
+            if ($code === false) {
+                continue;
+            }
+
+            $rel = str_replace('\\', '/', $file->getPathname());
+            $base = rtrim(str_replace('\\', '/', base_path()), '/');
+            if (str_starts_with($rel, $base . '/')) {
+                $rel = substr($rel, strlen($base) + 1);
+            }
+
+            $moduleFiles[$rel] = $code;
+        }
+
+        if ($moduleFiles === []) {
+            return [
+                'legacy_classes_in_app_referenced_from_modules' => [],
+                'legacy_classes_in_app_referenced_from_modules_count' => 0,
+            ];
+        }
+
+        $legacyReferenced = [];
+
+        foreach ($legacyMap as $fqn => $info) {
+            foreach ($moduleFiles as $rel => $code) {
+                if (str_contains($code, $fqn)) {
+                    $legacyReferenced[] = [
+                        'legacy_class' => $info['class'],
+                        'legacy_path' => $info['path'],
+                    ];
+                    break;
+                }
+            }
+        }
+
+        return [
+            'legacy_classes_in_app_referenced_from_modules' => $legacyReferenced,
+            'legacy_classes_in_app_referenced_from_modules_count' => count($legacyReferenced),
+        ];
+    }
+
+    /**
+     * Render a short console summary of conversion health (non-JSON mode).
+     *
+     * @param array<string,mixed> $conversionHealth
+     */
+    private function renderConversionHealthSummary(array $conversionHealth): void
+    {
+        $entries = $conversionHealth['legacy_classes_in_app_referenced_from_modules'] ?? [];
+
+        if (!is_array($entries) || count($entries) === 0) {
+            return;
+        }
+
+        $this->line('');
+        $this->info('[Conversion Health]');
+        $this->line('Legacy app/ classes referenced from modules:');
+
+        foreach ($entries as $entry) {
+            if (!is_array($entry)) {
+                continue;
+            }
+
+            $path = isset($entry['legacy_path']) && is_string($entry['legacy_path']) ? $entry['legacy_path'] : '';
+            $class = isset($entry['legacy_class']) && is_string($entry['legacy_class']) ? $entry['legacy_class'] : '';
+
+            if ($path === '' && $class === '') {
+                continue;
+            }
+
+            $label = $path !== '' ? $path : $class;
+            $this->line(' - ' . $label);
+        }
     }
 }

@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace CreativeCrafts\DomainDrivenDesignLite\Console\Commands;
 
+use CreativeCrafts\DomainDrivenDesignLite\Support\ConversionPlan;
+use CreativeCrafts\DomainDrivenDesignLite\Support\MoveCandidate;
 use CreativeCrafts\DomainDrivenDesignLite\Console\BaseCommand;
 use CreativeCrafts\DomainDrivenDesignLite\Support\AppBootstrapEditor;
 use CreativeCrafts\DomainDrivenDesignLite\Support\ConversionDiscovery;
@@ -27,6 +29,7 @@ final class ConvertCommand extends BaseCommand
         {--except= : Comma-separated kinds to exclude}
         {--paths= : Comma-separated absolute or relative paths to scan}
         {--with-shims : Include shim suggestions in plan output}
+        {--export-plan= : Optional path to write the discovered move plan as JSON}
         {--dry-run : Preview changes without writing}
         {--force : Overwrite existing files if present}
         {--rollback= : Roll back a previous conversion by manifest id}';
@@ -68,6 +71,9 @@ final class ConvertCommand extends BaseCommand
         return $this->handleSkeletonAndRegistration($module);
     }
 
+    /**
+     * @return array<int, array{0:string,1:int,2:string}>
+     */
     protected function getArguments(): array
     {
         return [
@@ -81,6 +87,11 @@ final class ConvertCommand extends BaseCommand
         $except = $this->csvOption('except');
         $paths = $this->csvOption('paths', allowRelative: true);
         $withShims = $this->option('with-shims') === true;
+        $dry = $this->option('dry-run') === true;
+
+        $opt = $this->option('export-plan');
+        $exportPlanRaw = is_string($opt) ? $opt : '';
+        $exportPlanPath = $exportPlanRaw !== '' ? $this->normalizePath($exportPlanRaw) : null;
 
         $discovery = new ConversionDiscovery();
         $plan = $discovery->discover($module, $only, $except, $paths);
@@ -92,6 +103,9 @@ final class ConvertCommand extends BaseCommand
         $this->twoColumn('Only', implode(',', $only) ?: '-');
         $this->twoColumn('Except', implode(',', $except) ?: '-');
         $this->twoColumn('Paths', implode(',', $paths) ?: 'auto');
+        if ($exportPlanPath !== null) {
+            $this->twoColumn('Export plan', $this->rel($exportPlanPath));
+        }
 
         $this->line('');
         if ($plan->isEmpty()) {
@@ -99,19 +113,47 @@ final class ConvertCommand extends BaseCommand
             return;
         }
 
-        $this->line(str_pad('FROM', 50) . ' → ' . str_pad('TO', 60) . ' | Namespace');
-        $this->line(str_repeat('-', 120));
+        // Group by "kind" to make large plans easier to digest.
+        $grouped = $this->groupPlanByKind($plan);
 
-        foreach ($plan->items as $c) {
-            $from = $this->rel($c->fromAbs);
-            $to = $this->rel($c->toAbs);
-            $ns = $c->fromNamespace . ' → ' . $c->toNamespace;
-            $this->line(str_pad($from, 50) . ' → ' . str_pad($to, 60) . ' | ' . $ns);
+        foreach ($this->orderedKindLabels() as $kind => $label) {
+            if (!array_key_exists($kind, $grouped) || $grouped[$kind] === []) {
+                continue;
+            }
+
+            $this->line('[' . $label . ']');
+            $this->line(str_pad('FROM', 50) . ' → ' . str_pad('TO', 60) . ' | Namespace');
+            $this->line(str_repeat('-', 120));
+
+            foreach ($grouped[$kind] as $c) {
+                $from = $this->rel($c->fromAbs);
+                $to = $this->rel($c->toAbs);
+                $ns = $c->fromNamespace . ' → ' . $c->toNamespace;
+                $this->line(str_pad($from, 50) . ' → ' . str_pad($to, 60) . ' | ' . $ns);
+            }
+
+            $this->line('');
         }
 
         if ($withShims) {
-            $this->line('');
             $this->info('Shim suggestion: when applying, you may generate temporary aliases at old locations.');
+            $this->line('');
+        }
+
+        $this->info('Summary by kind:');
+        foreach ($this->orderedKindLabels() as $kind => $label) {
+            if (!array_key_exists($kind, $grouped) || $grouped[$kind] === []) {
+                continue;
+            }
+
+            $this->twoColumn($label, (string)count($grouped[$kind]));
+        }
+
+        // Optional JSON export (no effect if no path given).
+        if ($exportPlanPath !== null && !$dry) {
+            $this->writeExportPlanJson($exportPlanPath, $plan);
+            $this->line('');
+            $this->info('Exported move plan to: ' . $this->rel($exportPlanPath));
         }
 
         $this->line('');
@@ -211,16 +253,11 @@ final class ConvertCommand extends BaseCommand
         }
 
         if ($bootstrapNeedsProvider) {
-            $original = (string)$this->files->get($bootstrapPath);
             $editor = new AppBootstrapEditor();
-            $patched = $editor->ensureProviderInsideConfigure($original, $providerFqcn);
-            if ($patched !== $original) {
-                $backup = storage_path('app/ddd-lite_scaffold/backups/' . sha1($bootstrapPath) . '.bak');
-                $this->files->ensureDirectoryExists(dirname($backup));
-                $this->files->put($backup, $original);
-                $this->files->put($bootstrapPath, $patched);
-                $manifest->trackUpdate($this->rel($bootstrapPath), $backup);
-            }
+            // Ensure provider is registered inside the fluent configure(...) chain
+            $editor->ensureModuleProvider($manifest, $module, $module . 'ServiceProvider');
+            // Clean up any legacy standalone $app->withProviders([...]) blocks
+            $editor->removeStandaloneWithProviders($manifest);
         }
 
         $manifest->save();
@@ -235,9 +272,13 @@ final class ConvertCommand extends BaseCommand
         return self::SUCCESS;
     }
 
+    /**
+     * @return array<int,string>
+     */
     private function csvOption(string $name, bool $allowRelative = false): array
     {
-        $raw = (string)($this->option($name) ?? '');
+        $opt = $this->option($name);
+        $raw = is_string($opt) ? $opt : '';
         if ($raw === '') {
             return [];
         }
@@ -263,9 +304,10 @@ final class ConvertCommand extends BaseCommand
         }
         /** @var array<string,mixed> $json */
         $json = json_decode((string)$this->files->get($composerPath), true, 512, JSON_THROW_ON_ERROR);
-        /** @var array<string,string> $autoload */
-        $autoload = $json['autoload']['psr-4'] ?? [];
-        return !array_key_exists('Modules\\', $autoload);
+        $autoloadRoot = $json['autoload'] ?? [];
+        $psr4 = is_array($autoloadRoot) ? ($autoloadRoot['psr-4'] ?? []) : [];
+        /** @var array<string,string> $psr4 */
+        return !array_key_exists('Modules\\', $psr4);
     }
 
     /**
@@ -275,9 +317,17 @@ final class ConvertCommand extends BaseCommand
     {
         /** @var array<string,mixed> $json */
         $json = json_decode($originalJson, true, 512, JSON_THROW_ON_ERROR);
-        $json['autoload'] = $json['autoload'] ?? [];
-        $json['autoload']['psr-4'] = $json['autoload']['psr-4'] ?? [];
-        $json['autoload']['psr-4']['Modules\\'] = 'modules/';
+        $autoloadRoot = $json['autoload'] ?? [];
+        if (!is_array($autoloadRoot)) {
+            $autoloadRoot = [];
+        }
+        $psr4 = $autoloadRoot['psr-4'] ?? [];
+        if (!is_array($psr4)) {
+            $psr4 = [];
+        }
+        $psr4['Modules\\'] = 'modules/';
+        $autoloadRoot['psr-4'] = $psr4;
+        $json['autoload'] = $autoloadRoot;
         return json_encode($json, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . PHP_EOL;
     }
 
@@ -412,5 +462,100 @@ final class ConvertCommand extends BaseCommand
         }
         $code = (string)$this->files->get($bootstrapPath);
         return !str_contains($code, $fqcn);
+    }
+
+    /**
+     * @param ConversionPlan $plan
+     * @return array<string, array<int, MoveCandidate>>
+     */
+    private function groupPlanByKind(ConversionPlan $plan): array
+    {
+        $grouped = [];
+
+        foreach ($plan->items as $candidate) {
+            $fromRel = $this->rel($candidate->fromAbs);
+            $kind = $this->inferKindFromRel($fromRel);
+
+            if (!array_key_exists($kind, $grouped)) {
+                $grouped[$kind] = [];
+            }
+
+            $grouped[$kind][] = $candidate;
+        }
+
+        return $grouped;
+    }
+
+    /**
+     * @return array<string,string>
+     */
+    private function orderedKindLabels(): array
+    {
+        return [
+            'controllers' => 'Controllers',
+            'requests' => 'Requests',
+            'models' => 'Models',
+            'actions' => 'Actions',
+            'dto' => 'DTOs',
+            'contracts' => 'Contracts',
+            'other' => 'Other',
+        ];
+    }
+
+    private function inferKindFromRel(string $fromRel): string
+    {
+        return match (true) {
+            Str::startsWith($fromRel, 'app/Http/Controllers/') => 'controllers',
+            Str::startsWith($fromRel, 'app/Http/Requests/') => 'requests',
+            Str::startsWith($fromRel, 'app/Models/') => 'models',
+            Str::startsWith($fromRel, 'app/Actions/') => 'actions',
+            Str::startsWith($fromRel, 'app/DTO/') => 'dto',
+            Str::startsWith($fromRel, 'app/Contracts/') => 'contracts',
+            default => 'other',
+        };
+    }
+
+    private function normalizePath(string $path): string
+    {
+        // Absolute path (Unix-like or Windows drive)
+        if (str_starts_with($path, DIRECTORY_SEPARATOR) || preg_match('#^[A-Za-z]:#', $path) === 1) {
+            return $path;
+        }
+
+        // Treat as relative to base_path()
+        return base_path($path);
+    }
+
+    /**
+     * @param string $exportAbs Absolute path to export file
+     * @param ConversionPlan $plan
+     * @throws JsonException
+     */
+    private function writeExportPlanJson(string $exportAbs, ConversionPlan $plan): void
+    {
+        $payload = [];
+
+        foreach ($plan->items as $candidate) {
+            $fromAbs = $candidate->fromAbs;
+            $toAbs = $candidate->toAbs;
+            $fromRel = $this->rel($fromAbs);
+            $toRel = $this->rel($toAbs);
+            $kind = $this->inferKindFromRel($fromRel);
+
+            $payload[] = [
+                'from_abs' => $fromAbs,
+                'to_abs' => $toAbs,
+                'from_rel' => $fromRel,
+                'to_rel' => $toRel,
+                'from_namespace' => $candidate->fromNamespace,
+                'to_namespace' => $candidate->toNamespace,
+                'kind' => $kind,
+            ];
+        }
+
+        $json = json_encode($payload, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+
+        $this->files->ensureDirectoryExists(dirname($exportAbs));
+        $this->files->put($exportAbs, $json . PHP_EOL);
     }
 }

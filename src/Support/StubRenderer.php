@@ -13,6 +13,9 @@ final class StubRenderer
     {
     }
 
+    /**
+     * @param array<string,string> $vars
+     */
     public function render(string $logicalName, array $vars): string
     {
         $path = $this->resolve($logicalName);
@@ -31,6 +34,9 @@ final class StubRenderer
         throw new RuntimeException('Stub not found: ' . $logicalName);
     }
 
+    /**
+     * @return array<int,string>
+     */
     private function candidates(string $logicalName): array
     {
         $roots = [
@@ -45,17 +51,22 @@ final class StubRenderer
         $logicalName = ltrim($logicalName, '/\\');
         $out = [];
         foreach ($roots as $root) {
-            $out[] = rtrim($root, '/\\') . DIRECTORY_SEPARATOR . $logicalName;
+            $out[] = rtrim((string)$root, '/\\') . DIRECTORY_SEPARATOR . $logicalName;
         }
         return $out;
     }
 
+    /**
+     * @param array<string,string> $vars
+     */
     private function interpolate(string $template, array $vars): string
     {
         $map = [];
         foreach ($vars as $k => $v) {
-            $map['{{ ' . $k . ' }}'] = (string)$v;
-            $map['{{' . $k . '}}'] = (string)$v;
+            $ks = (string)$k;
+            $vs = (string)$v;
+            $map['{{ ' . $ks . ' }}'] = $vs;
+            $map['{{' . $ks . '}}'] = $vs;
         }
         return strtr($template, $map);
     }

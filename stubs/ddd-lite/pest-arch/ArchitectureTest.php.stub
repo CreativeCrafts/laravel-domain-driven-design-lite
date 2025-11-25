@@ -2,24 +2,20 @@
 
 declare(strict_types=1);
 
-use Pest\Arch\Contracts\ArchExpectation;
-use function Pest\Arch\layer;
+arch()->preset()->security();
+arch()->preset()->php();
 
-dataset('layers', [
-    'Domain' => 'Modules/.+/Domain/.*',
-    'Application' => 'Modules/.+/App/.*',
-]);
+arch('Global ArchTest: Do not leave debug statements in the codebase.')
+    ->expect(['dd', 'dump', 'var_dump', 'var_export', 'var_export_debug', 'print_r'])
+    ->not
+    ->toBeUsed();
 
-test('application may depend on domain and framework', function (string $regex): void {
-    $expectation = layer('Application', $regex);
-    expect($expectation)->toBeInstanceOf(ArchExpectation::class);
-})->with([
-    fn () => dataset('layers')['Application'],
-]);
+arch('Global ArchTest: Do not leave environment variables in the codebase.')
+    ->expect(['env'])
+    ->not
+    ->toBeUsed();
 
-test('domain may depend on framework', function (string $regex): void {
-    $expectation = layer('Domain', $regex);
-    expect($expectation)->toBeInstanceOf(ArchExpectation::class);
-})->with([
-    fn () => dataset('layers')['Domain'],
-]);
+arch('Global ArchTest: Strict type checking should be enabled in all files.')
+    ->arch('Strict type checking should be enabled in all files.')
+    ->expect(['App', 'Domains', 'Modules'])
+    ->toUseStrictTypes();

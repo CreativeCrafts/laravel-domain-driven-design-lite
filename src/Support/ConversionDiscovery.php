@@ -175,10 +175,20 @@ final readonly class ConversionDiscovery
         };
     }
 
+    /**
+     * @param array<int,string> $only
+     * @param array<int,string> $except
+     */
     private function normalizeFilters(array $only, array $except): Filters
     {
-        $o = array_filter(array_map(static fn (string $v): string => strtolower(trim($v)), $only));
-        $e = array_filter(array_map(static fn (string $v): string => strtolower(trim($v)), $except));
+        $o = array_filter(array_map(static function ($v): string {
+            return strtolower(trim((string)$v));
+        }, $only));
+        $e = array_filter(array_map(static function ($v): string {
+            return strtolower(trim((string)$v));
+        }, $except));
+        /** @var array<int,string> $o */
+        /** @var array<int,string> $e */
         return new Filters($o, $e);
     }
 }

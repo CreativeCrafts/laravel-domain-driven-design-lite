@@ -9,12 +9,12 @@ beforeEach(function () {
 
     $bootstrap = base_path('bootstrap/app.php');
 
-    if (!$fs->exists($bootstrap)) {
-        $fs->ensureDirectoryExists(dirname($bootstrap));
+    $fs->ensureDirectoryExists(dirname($bootstrap));
 
-        $fs->put(
-            $bootstrap,
-            <<<'PHP'
+    // Always reset bootstrap/app.php to a known-good template to avoid cross-test interference
+    $fs->put(
+        $bootstrap,
+        <<<'PHP'
 <?php
 
 use Illuminate\Foundation\Application;
@@ -34,8 +34,7 @@ return Application::configure(basePath: dirname(__DIR__))
         //
     })->create();
 PHP
-        );
-    }
+    );
 });
 
 it('dry-run prints a plan and performs no writes', function (): void {

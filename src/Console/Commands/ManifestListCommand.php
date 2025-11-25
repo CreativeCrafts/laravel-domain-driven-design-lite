@@ -76,10 +76,13 @@ final class ManifestListCommand extends BaseCommand
                 continue;
             }
 
-            $id = (string)($decoded['id'] ?? pathinfo($path, PATHINFO_FILENAME));
-            $createdIso = (string)($decoded['created_at'] ?? '');
+            $idVal = $decoded['id'] ?? null;
+            $id = is_string($idVal) ? $idVal : pathinfo($path, PATHINFO_FILENAME);
+            $createdVal = $decoded['created_at'] ?? null;
+            $createdIso = is_string($createdVal) ? $createdVal : '';
             $createdTs = $createdIso !== '' ? $this->parseIsoToTs($createdIso) : null;
-            $actions = is_array($decoded['actions'] ?? null) ? $decoded['actions'] : [];
+            $actionsRaw = $decoded['actions'] ?? [];
+            $actions = is_array($actionsRaw) ? array_values($actionsRaw) : [];
 
             if ($afterTs !== null && ($createdTs === null || $createdTs < $afterTs)) {
                 continue;
@@ -115,7 +118,7 @@ final class ManifestListCommand extends BaseCommand
                     array_unique(
                         array_filter(
                             array_map(
-                                static fn ($a) => is_array($a) ? (string)($a['type'] ?? '') : '',
+                                static fn ($a): string => (is_array($a) && is_string($a['type'] ?? null)) ? $a['type'] : '',
                                 $actions
                             ),
                             static fn ($t) => $t !== ''
