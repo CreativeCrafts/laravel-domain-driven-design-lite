@@ -46,7 +46,7 @@ jobs:
         run: composer validate --strict
 
       - name: Security audit
-        run: composer audit --no-interaction --no-progress
+        run: composer audit --no-interaction
 
       - name: Code style (Pint, check only)
         run: vendor/bin/pint --test -v
