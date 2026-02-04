@@ -1,0 +1,10 @@
+<?php
+
+declare(strict_types=1);
+
+use Illuminate\Database\Eloquent\Builder;
+use Modules\{{ module }}\Domain\Builders\{{ class }};
+
+it('extends Eloquent Builder for {{ class }}', function (): void {
+    expect(is_subclass_of({{ class }}::class, Builder::class))->toBeTrue();
+});

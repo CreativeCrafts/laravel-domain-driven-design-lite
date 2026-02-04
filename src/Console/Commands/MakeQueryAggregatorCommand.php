@@ -18,6 +18,7 @@ final class MakeQueryAggregatorCommand extends BaseCommand
     protected $signature = 'ddd-lite:make:aggregator
         {module? : Module name in PascalCase}
         {name? : Base name without suffix}
+        {--no-test : Do not create a test}
         {--force : Overwrite if exists}
         {--dry-run : Preview only}
         {--rollback= : Rollback by manifest id}';
@@ -44,6 +45,7 @@ final class MakeQueryAggregatorCommand extends BaseCommand
         $module = Str::studly($this->getStringArgument('module'));
         $base = Str::studly($this->getStringArgument('name'));
         $class = $base . 'Aggregator';
+        $noTest = $this->option('no-test') === true;
 
         $manifest = $this->beginManifest();
 
@@ -55,11 +57,16 @@ final class MakeQueryAggregatorCommand extends BaseCommand
         $ns = "Modules\\{$module}\\Domain\\Aggregators";
         $dir = "{$moduleRoot}/Domain/Aggregators";
         $path = "{$dir}/{$class}.php";
+        $testsDir = "{$moduleRoot}/tests/Unit/Domain/Aggregators";
+        $testPath = "{$testsDir}/{$class}Test.php";
 
         $this->twoColumn('Module', $module);
         $this->twoColumn('Class', "{$ns}\\{$class}");
         $this->twoColumn('Path', $this->rel($path));
         $this->twoColumn('Dry run', $this->option('dry-run') ? 'yes' : 'no');
+        if (!$noTest) {
+            $this->twoColumn('Test', $this->rel($testPath));
+        }
 
         $code = $this->render('ddd-lite/query.aggregator.stub', [
             'module' => $module,
@@ -101,6 +108,33 @@ final class MakeQueryAggregatorCommand extends BaseCommand
 
         try {
             $fs->put($path, $code);
+
+            if (!$noTest) {
+                if (!is_dir($testsDir)) {
+                    $fs->ensureDirectoryExists($testsDir);
+                    $manifest->trackMkdir($this->rel($testsDir));
+                }
+
+                $testCode = $this->render('ddd-lite/query-aggregator-test.stub', [
+                    'module' => $module,
+                    'class' => $class,
+                ]);
+
+                if ($fs->exists($testPath) && !$force) {
+                    // keep existing test
+                } elseif ($fs->exists($testPath)) {
+                    $relativeTestPath = $this->rel($testPath);
+                    $backup = storage_path('app/ddd-lite_scaffold/backups/' . sha1($relativeTestPath) . '.bak');
+                    $fs->ensureDirectoryExists(dirname($backup));
+                    $fs->put($backup, (string)$fs->get($testPath));
+                    $manifest->trackUpdate($relativeTestPath, $this->rel($backup));
+                    $fs->put($testPath, $testCode);
+                } else {
+                    $fs->put($testPath, $testCode);
+                    $manifest->trackCreate($this->rel($testPath));
+                }
+            }
+
             $manifest->save();
 
             $this->info('Aggregator created. Manifest: ' . $manifest->id());

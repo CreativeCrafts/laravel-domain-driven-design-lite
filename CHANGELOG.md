@@ -5,6 +5,44 @@ All notable changes to `laravel-domain-driven-design-lite` will be documented in
 The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.3] - 2026-02-04
+
+### Added
+
+- Documentation recipes and advanced workflows:
+  - Controller → Action → Repository orchestration example.
+  - Payments walkthrough (DTO → Contract → Repository → Action).
+  - Multi‑tenant boundaries with Deptrac + PHPStan examples.
+  - Safe refactor workflow with dry‑run + manifest rollback.
+  - Monolith conversion to module (with namespace rewrite flow).
+  - Orders module creation and typical directory structure.
+
+### Changed
+
+- README reorganized for clearer navigation and reduced duplication.
+- `ddd-lite:init` now validates interactive choices with stricter typing.
+- JSON output commands now throw on encoding failures for safer CLI output.
+- `StubDiff` file collection hardened for stricter typing.
+- PHPStan config updated to disable parallel TCP server usage in restricted environments.
+
+## [0.0.2] – 2026-02-03
+
+### Added
+
+- `ddd-lite:init` wizard to bootstrap a project (publish stubs/quality, scaffold a starter module, optional CI snippet).
+- `ddd-lite:modules:list` to list modules with optional health indicators.
+- `ddd-lite:boundaries` as a friendly alias for Deptrac boundary checks.
+- `ddd-lite:stubs:diff` and `ddd-lite:stubs:sync` to compare/sync customized stubs.
+- `--deep` flag on `ddd-lite:doctor` to run domain + CI diagnostics in one go.
+- `--shared` and `--yes` flags on `ddd-lite:module` for shared‑kernel scaffolding and non‑interactive runs.
+- `--suggest-contracts` on `ddd-lite:convert --plan-moves` to emit recommended contracts/bindings.
+- Test generation for query, query‑builder, and aggregator generators (with `--no-test` to skip).
+- Optional validation tests for value objects via `--with-validation-test`.
+
+### Changed
+
+- README enhanced with quick start, initialization, new command coverage, and improved navigation.
+
 ## [0.0.1] – 2025-11-25
 
 ### Added

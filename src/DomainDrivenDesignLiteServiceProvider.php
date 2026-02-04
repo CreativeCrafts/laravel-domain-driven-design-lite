@@ -26,7 +26,12 @@ use CreativeCrafts\DomainDrivenDesignLite\Console\Commands\MakeValueObjectComman
 use CreativeCrafts\DomainDrivenDesignLite\Console\Commands\ManifestListCommand;
 use CreativeCrafts\DomainDrivenDesignLite\Console\Commands\ManifestShowCommand;
 use CreativeCrafts\DomainDrivenDesignLite\Console\Commands\ModuleScaffoldCommand;
+use CreativeCrafts\DomainDrivenDesignLite\Console\Commands\ModulesListCommand;
 use CreativeCrafts\DomainDrivenDesignLite\Console\Commands\PublishQualityCommand;
+use CreativeCrafts\DomainDrivenDesignLite\Console\Commands\InitCommand;
+use CreativeCrafts\DomainDrivenDesignLite\Console\Commands\BoundariesCommand;
+use CreativeCrafts\DomainDrivenDesignLite\Console\Commands\StubsDiffCommand;
+use CreativeCrafts\DomainDrivenDesignLite\Console\Commands\StubsSyncCommand;
 use Illuminate\Support\ServiceProvider;
 
 final class DomainDrivenDesignLiteServiceProvider extends ServiceProvider
@@ -69,6 +74,11 @@ final class DomainDrivenDesignLiteServiceProvider extends ServiceProvider
     {
         $this->commands([
             ModuleScaffoldCommand::class,
+            InitCommand::class,
+            ModulesListCommand::class,
+            BoundariesCommand::class,
+            StubsDiffCommand::class,
+            StubsSyncCommand::class,
             DoctorCommand::class,
             DoctorCiCommand::class,
 

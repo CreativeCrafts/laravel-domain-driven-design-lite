@@ -154,8 +154,32 @@ it('can rollback a previous binding and restore provider', function () {
 
     $diff = array_values(array_diff($after, $before));
     expect(count($diff))->toBeGreaterThan(0);
-    $manifestPath = $diff[array_key_last($diff)];
-    $manifestId = basename($manifestPath, '.json');
+
+    $providerRel = ltrim(str_replace(base_path() . DIRECTORY_SEPARATOR, '', $providerPath), DIRECTORY_SEPARATOR);
+    $manifestPath = null;
+    $manifestId = null;
+
+    foreach ($diff as $file) {
+        if (!is_file($file)) {
+            continue;
+        }
+        $data = json_decode((string) file_get_contents($file), true, 512, JSON_THROW_ON_ERROR);
+        $actions = $data['actions'] ?? [];
+        foreach ($actions as $action) {
+            if (($action['type'] ?? '') === 'update' && ($action['path'] ?? '') === $providerRel) {
+                $manifestPath = $file;
+                $manifestId = basename($file, '.json');
+                break 2;
+            }
+        }
+    }
+
+    if ($manifestId === null && $diff !== []) {
+        $manifestPath = $diff[array_key_last($diff)];
+        $manifestId = basename((string)$manifestPath, '.json');
+    }
+
+    expect($manifestId)->not->toBeNull();
 
     // Rollback using the manifest id
     $this->artisan('ddd-lite:bind', [

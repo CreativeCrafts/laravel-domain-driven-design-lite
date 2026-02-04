@@ -29,6 +29,7 @@ final class ConvertCommand extends BaseCommand
         {--except= : Comma-separated kinds to exclude}
         {--paths= : Comma-separated absolute or relative paths to scan}
         {--with-shims : Include shim suggestions in plan output}
+        {--suggest-contracts : Suggest domain contracts and bindings for moved repositories/actions}
         {--export-plan= : Optional path to write the discovered move plan as JSON}
         {--dry-run : Preview changes without writing}
         {--force : Overwrite existing files if present}
@@ -87,6 +88,7 @@ final class ConvertCommand extends BaseCommand
         $except = $this->csvOption('except');
         $paths = $this->csvOption('paths', allowRelative: true);
         $withShims = $this->option('with-shims') === true;
+        $suggestContracts = $this->option('suggest-contracts') === true;
         $dry = $this->option('dry-run') === true;
 
         $opt = $this->option('export-plan');
@@ -140,6 +142,10 @@ final class ConvertCommand extends BaseCommand
             $this->line('');
         }
 
+        if ($suggestContracts) {
+            $this->renderContractSuggestions($plan, $module, $paths);
+        }
+
         $this->info('Summary by kind:');
         foreach ($this->orderedKindLabels() as $kind => $label) {
             if (!array_key_exists($kind, $grouped) || $grouped[$kind] === []) {
@@ -158,6 +164,69 @@ final class ConvertCommand extends BaseCommand
 
         $this->line('');
         $this->info('Use --apply-moves to perform these moves with AST-based namespace rewrites.');
+    }
+
+    /**
+     * @param array<int,string> $paths
+     */
+    private function renderContractSuggestions(ConversionPlan $plan, string $module, array $paths): void
+    {
+        $repo = [];
+        $actions = [];
+
+        foreach ($plan->items as $candidate) {
+            $fromRel = $this->rel($candidate->fromAbs);
+            $kind = $this->inferKindFromRel($fromRel);
+            $class = pathinfo($fromRel, PATHINFO_FILENAME);
+
+            if ($kind === 'models') {
+                $repo[] = $class;
+            } elseif ($kind === 'actions') {
+                $actions[] = $class;
+            }
+        }
+
+        if ($repo === [] && $actions === []) {
+            // Fallback: scan provided paths for Models/Actions when plan is empty.
+            foreach ($paths as $p) {
+                if (!is_dir($p)) {
+                    continue;
+                }
+                $files = $this->files->allFiles($p, true);
+                foreach ($files as $file) {
+                    $abs = (string)$file;
+                    if (!str_ends_with($abs, '.php')) {
+                        continue;
+                    }
+                    if (str_contains($abs, DIRECTORY_SEPARATOR . 'Models' . DIRECTORY_SEPARATOR)) {
+                        $repo[] = pathinfo($abs, PATHINFO_FILENAME);
+                    }
+                    if (str_contains($abs, DIRECTORY_SEPARATOR . 'Actions' . DIRECTORY_SEPARATOR)) {
+                        $actions[] = pathinfo($abs, PATHINFO_FILENAME);
+                    }
+                }
+            }
+        }
+
+        if ($repo === [] && $actions === []) {
+            return;
+        }
+
+        $this->line('');
+        $this->info('Suggested contracts & bindings (manual):');
+
+        foreach ($repo as $model) {
+            $contract = "{$model}RepositoryContract";
+            $impl = "{$model}Repository";
+            $this->line("- ddd-lite:make:contract {$module} {$contract} --in={$model}");
+            $this->line("- ddd-lite:make:repository {$module} {$model}");
+            $this->line("- ddd-lite:bind {$module} {$contract} {$impl}");
+        }
+
+        foreach ($actions as $action) {
+            $contract = "{$action}Contract";
+            $this->line("- ddd-lite:make:contract {$module} {$contract} --in=Actions");
+        }
     }
 
     /**

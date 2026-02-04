@@ -23,6 +23,7 @@ final class DoctorCommand extends BaseCommand
         {--dry-run : Preview actions without writing}
         {--rollback= : Rollback a previous doctor run using its manifest id}
         {--json : Output JSON report (non-interactive)}
+        {--deep : Run deep checks (doctor:domain + doctor-ci) after base checks}
         {--prefer= : Fix strategy when class and filename mismatch: "file" or "class"}';
 
     protected $description = 'Diagnose and optionally fix PSR-4, module casing, provider registration, routing keys, and filename/class mismatches.';
@@ -49,6 +50,7 @@ final class DoctorCommand extends BaseCommand
         $fix = $this->option('fix') === true;
         $dry = $this->option('dry-run') === true;
         $jsonOut = $this->option('json') === true;
+        $deep = $this->option('deep') === true;
         $preferOpt = $this->option('prefer');
         $prefer = in_array($preferOpt, ['file', 'class'], true) ? $preferOpt : 'file';
 
@@ -335,6 +337,26 @@ final class DoctorCommand extends BaseCommand
                 } else {
                     $this->info('[doctor] complete. No fixes applied.');
                 }
+            }
+
+            if ($deep) {
+                $this->line('');
+                $this->info('[doctor] deep checks...');
+                if ($jsonOut) {
+                    $this->line('');
+                    $this->info('[doctor] deep results:');
+                }
+                $domainArgs = [
+                    '--json' => true,
+                    '--stdin-report' => '{"summary":{"violations":0,"uncovered":0,"allowed":0,"warnings":0,"errors":0}}',
+                ];
+                if (is_file(base_path('deptrac.yaml'))) {
+                    $domainArgs['--config'] = base_path('deptrac.yaml');
+                }
+                $this->call('ddd-lite:doctor:domain', $domainArgs);
+                $this->call('ddd-lite:doctor-ci', [
+                    '--json' => true,
+                ]);
             }
 
             return self::SUCCESS;

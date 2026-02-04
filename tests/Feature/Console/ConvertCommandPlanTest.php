@@ -52,3 +52,22 @@ it('accepts explicit paths', function (): void {
 
     expect($exit)->toBe(0);
 });
+
+it('suggests contracts when --suggest-contracts is enabled', function (): void {
+    $fs = new Filesystem();
+
+    $fs->ensureDirectoryExists(base_path('app/Models'));
+    $fs->ensureDirectoryExists(base_path('app/Actions'));
+
+    $fs->put(base_path('app/Models/Trip.php'), "<?php\nnamespace App\\Models;\nclass Trip {}\n");
+    $fs->put(base_path('app/Actions/CreateTrip.php'), "<?php\nnamespace App\\Actions;\nclass CreateTrip {}\n");
+
+    $exit = $this->artisan('ddd-lite:convert', [
+        'module' => 'Planner',
+        '--plan-moves' => true,
+        '--paths' => 'app/Models,app/Actions',
+        '--suggest-contracts' => true,
+    ])->run();
+
+    expect($exit)->toBe(0);
+});

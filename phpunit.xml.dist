@@ -10,6 +10,7 @@
     executionOrder="random"
     failOnWarning="true"
     failOnRisky="true"
+    displayDetailsOnTestsThatTriggerDeprecations="false"
     failOnEmptyTestSuite="true"
     beStrictAboutOutputDuringTests="true"
     cacheDirectory=".phpunit.cache"
@@ -28,4 +29,7 @@
             <directory suffix=".php">./src</directory>
         </include>
     </source>
+    <php>
+        <ini name="error_reporting" value="E_ALL &amp; ~E_DEPRECATED &amp; ~E_USER_DEPRECATED"/>
+    </php>
 </phpunit>

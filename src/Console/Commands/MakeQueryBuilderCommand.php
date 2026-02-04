@@ -17,6 +17,7 @@ final class MakeQueryBuilderCommand extends BaseCommand
     protected $signature = 'ddd-lite:make:query-builder
         {module : Module name (e.g. Planner)}
         {name : Base name without suffix (e.g. Trip)}
+        {--no-test : Do not create a test}
         {--force : Overwrite existing file if contents differ}
         {--dry-run : Show the plan without writing files}
         {--rollback= : Rollback by manifest id}';
@@ -51,10 +52,14 @@ final class MakeQueryBuilderCommand extends BaseCommand
             throw new RuntimeException('Name is required.');
         }
 
+        $noTest = $this->option('no-test') === true;
         $class = "{$base}QueryBuilder";
         $relativeDir = "modules/{$module}/Domain/Builders";
         $relativePath = "{$relativeDir}/{$class}.php";
         $absPath = base_path($relativePath);
+        $testsDir = "modules/{$module}/tests/Unit/Domain/Builders";
+        $testRelPath = "{$testsDir}/{$class}Test.php";
+        $testAbsPath = base_path($testRelPath);
 
         $vars = [
             'module' => $module,
@@ -66,6 +71,9 @@ final class MakeQueryBuilderCommand extends BaseCommand
         $this->twoColumn('Module', $module);
         $this->twoColumn('Class', $class);
         $this->twoColumn('Target', $this->rel($absPath));
+        if (!$noTest) {
+            $this->twoColumn('Test', $this->rel($testAbsPath));
+        }
 
         $isDryRun = (bool)$this->option('dry-run');
         $force = (bool)$this->option('force');
@@ -112,6 +120,31 @@ final class MakeQueryBuilderCommand extends BaseCommand
             } else {
                 $this->files->put($absPath, $contents);
                 $manifest->trackCreate($relativePath);
+            }
+
+            if (!$noTest) {
+                if (!$this->files->isDirectory(base_path($testsDir))) {
+                    $this->files->ensureDirectoryExists(base_path($testsDir));
+                    $manifest->trackMkdir($testsDir);
+                }
+
+                $testCode = $this->render('ddd-lite/query-builder-test.stub', [
+                    'module' => $module,
+                    'class' => $class,
+                ]);
+
+                if ($this->files->exists($testAbsPath) && !$force) {
+                    // keep existing test
+                } elseif ($this->files->exists($testAbsPath)) {
+                    $backup = 'storage/app/ddd-lite_scaffold/backups/' . sha1($testRelPath) . '.bak';
+                    $this->files->ensureDirectoryExists(dirname(base_path($backup)));
+                    $this->files->put(base_path($backup), (string)$this->files->get($testAbsPath));
+                    $this->files->put($testAbsPath, $testCode);
+                    $manifest->trackUpdate($testRelPath, $backup);
+                } else {
+                    $this->files->put($testAbsPath, $testCode);
+                    $manifest->trackCreate($testRelPath);
+                }
             }
 
             $manifest->save();

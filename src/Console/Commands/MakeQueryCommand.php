@@ -18,6 +18,7 @@ final class MakeQueryCommand extends BaseCommand
     protected $signature = 'ddd-lite:make:query
         {module : The target module name (e.g. Planner)}
         {name : The query class base name (e.g. TripIndexQuery)}
+        {--no-test : Do not create a test}
         {--force : Overwrite the query if it already exists}
         {--dry-run : Print what would happen without writing files}
         {--rollback= : Rollback a previous run by manifest id}';
@@ -35,6 +36,7 @@ final class MakeQueryCommand extends BaseCommand
 
         $module = Str::studly($this->getStringArgument('module'));
         $name = Str::studly($this->getStringArgument('name'));
+        $noTest = $this->option('no-test') === true;
         $force = (bool)$this->option('force');
         $dryRun = (bool)$this->option('dry-run');
         $rollbackId = $this->getStringOption('rollback');
@@ -69,6 +71,7 @@ final class MakeQueryCommand extends BaseCommand
             'File' => $relativePath,
             'Force' => $force ? 'yes' : 'no',
             'Dry run' => $dryRun ? 'yes' : 'no',
+            'Tests' => $noTest ? 'skipped' : 'generate',
         ]);
 
         $existingContent = $files->exists($queryPath)
@@ -121,6 +124,34 @@ final class MakeQueryCommand extends BaseCommand
 
             $files->put($queryPath, $stub);
             $manifest->trackUpdate($relativePath, $this->rel($backup));
+        }
+
+        if (!$noTest) {
+            $testsDir = base_path("modules/{$module}/tests/Unit/Domain/Queries");
+            $testPath = $testsDir . "/{$name}Test.php";
+
+            if (!$files->isDirectory($testsDir)) {
+                $files->ensureDirectoryExists($testsDir);
+                $manifest->trackMkdir($this->rel($testsDir));
+            }
+
+            $testCode = $this->render('ddd-lite/query-test.stub', [
+                'module' => $module,
+                'class' => $name,
+            ]);
+
+            if ($files->exists($testPath) && !$force) {
+                // Keep existing test if not forcing.
+            } elseif ($files->exists($testPath)) {
+                $backup = storage_path('app/ddd-lite_scaffold/backups/' . sha1($this->rel($testPath)) . '.bak');
+                $files->ensureDirectoryExists(dirname($backup));
+                $files->put($backup, (string)$files->get($testPath));
+                $files->put($testPath, $testCode);
+                $manifest->trackUpdate($this->rel($testPath), $this->rel($backup));
+            } else {
+                $files->put($testPath, $testCode);
+                $manifest->trackCreate($this->rel($testPath));
+            }
         }
 
         $manifest->save();

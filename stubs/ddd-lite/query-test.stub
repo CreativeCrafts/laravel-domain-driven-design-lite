@@ -1,0 +1,11 @@
+<?php
+
+declare(strict_types=1);
+
+use Modules\{{ module }}\Domain\Queries\{{ class }};
+
+it('runs {{ class }}', function (): void {
+    $query = new {{ class }}();
+
+    expect($query->run())->toBeArray();
+});

@@ -9,6 +9,8 @@ it('creates a Value Object', function (): void {
     $fs = new Filesystem();
 
     $module = 'Planner';
+    $fs->delete(base_path('stubs/ddd-lite/value-object.stub'));
+    $fs->delete(base_path('stubs/ddd-lite/ddd-lite/value-object.stub'));
     $fs->ensureDirectoryExists(base_path("modules/{$module}/Domain/ValueObjects"));
 
     $path = base_path("modules/{$module}/Domain/ValueObjects/Email.php");
@@ -56,6 +58,8 @@ it('is idempotent when unchanged (no --force)', function (): void {
     $fs = new Filesystem();
 
     $module = 'Planner';
+    $fs->delete(base_path('stubs/ddd-lite/value-object.stub'));
+    $fs->delete(base_path('stubs/ddd-lite/ddd-lite/value-object.stub'));
     $name = 'TripId';
     $target = base_path("modules/{$module}/Domain/ValueObjects/{$name}.php");
 
@@ -90,6 +94,8 @@ it('overwrites with --force and creates a backup', function (): void {
     $fs = new Filesystem();
 
     $module = 'Planner';
+    $fs->delete(base_path('stubs/ddd-lite/value-object.stub'));
+    $fs->delete(base_path('stubs/ddd-lite/ddd-lite/value-object.stub'));
     $name = 'Uuid';
     $target = base_path("modules/{$module}/Domain/ValueObjects/{$name}.php");
 

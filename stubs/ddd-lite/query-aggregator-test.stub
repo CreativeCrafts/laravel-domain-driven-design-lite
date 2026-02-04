@@ -1,0 +1,11 @@
+<?php
+
+declare(strict_types=1);
+
+use Modules\{{ module }}\Domain\Aggregators\{{ class }};
+
+it('aggregates queries with {{ class }}', function (): void {
+    $agg = {{ class }}::fromQueries();
+
+    expect($agg->toArray())->toBeArray();
+});

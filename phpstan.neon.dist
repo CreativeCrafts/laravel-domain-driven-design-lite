@@ -24,3 +24,9 @@ parameters:
     treatPhpDocTypesAsCertain: true
     inferPrivatePropertyTypeFromConstructor: true
     reportUnmatchedIgnoredErrors: false
+
+    parallel:
+        maximumNumberOfProcesses: 0
+        minimumNumberOfJobsPerProcess: 1
+        jobSize: 1
+        processTimeout: 600.0

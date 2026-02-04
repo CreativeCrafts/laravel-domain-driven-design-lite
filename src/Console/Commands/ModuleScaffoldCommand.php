@@ -21,6 +21,8 @@ final class ModuleScaffoldCommand extends BaseCommand
         {--dry-run : Preview actions without writing}
         {--rollback= : Rollback a previous run using its manifest id}
         {--force : Overwrite existing files if they exist}
+        {--shared : Scaffold a shared-kernel module (domain-only)}
+        {--yes : Skip confirmation prompt}
         {--fix-psr4 : Auto-rename lowercase module folders to PSR-4 compliant PascalCase}';
 
     protected $description = 'Scaffold a new DDD-lite module skeleton (providers, routes, PSR-4 mapping). No generic domain artifacts are created.';
@@ -53,17 +55,22 @@ final class ModuleScaffoldCommand extends BaseCommand
         $module = Str::studly($this->getStringArgument('name'));
         $dry = $this->option('dry-run') === true;
         $force = $this->option('force') === true;
+        $shared = $this->option('shared') === true;
         $fixPsr4 = $this->option('fix-psr4') === true;
+        $skipConfirm = $this->option('yes') === true;
 
         $this->summary('Module scaffold plan', [
             'Module' => $module,
             'Module root' => "modules/{$module}",
+            'Shared kernel' => $shared ? 'yes' : 'no',
             'Fix PSR-4' => $fixPsr4 ? 'yes' : 'no',
             'Dry run' => $dry ? 'yes' : 'no',
             'Force overwrite' => $force ? 'yes' : 'no',
         ]);
 
-        $this->confirmOrExit("Proceed to scaffold modules/{$module}?");
+        if (!$skipConfirm) {
+            $this->confirmOrExit("Proceed to scaffold modules/{$module}?");
+        }
 
         $manifest = $this->beginManifest();
         $guard = new Psr4Guard();
@@ -78,30 +85,46 @@ final class ModuleScaffoldCommand extends BaseCommand
             }
 
             // Track ALL parents and leaves (ensures full clean-up in LIFO)
-            $dirs = [
-                // Root + parents
-                "modules/{$module}",
-                "modules/{$module}/App",
-                "modules/{$module}/App/Http",
-                "modules/{$module}/Domain",
-                "modules/{$module}/Database",
-                "modules/{$module}/Routes",
-                "modules/{$module}/tests",
-                // Leaves
-                "modules/{$module}/App/Http/Controllers",
-                "modules/{$module}/App/Http/Requests",
-                "modules/{$module}/App/Models",
-                "modules/{$module}/App/Providers",
-                "modules/{$module}/App/Repositories",
-                "modules/{$module}/Domain/DTO",
-                "modules/{$module}/Domain/Contracts",
-                "modules/{$module}/Domain/Actions",
-                "modules/{$module}/Domain/Queries",
-                "modules/{$module}/Database/migrations",
-                "modules/{$module}/tests/Feature",
-                "modules/{$module}/tests/Unit",
-                "modules/{$module}/tests/Unit/fakes",
-            ];
+            $dirs = $shared
+                ? [
+                    "modules/{$module}",
+                    "modules/{$module}/App",
+                    "modules/{$module}/App/Providers",
+                    "modules/{$module}/Domain",
+                    "modules/{$module}/Domain/DTO",
+                    "modules/{$module}/Domain/Contracts",
+                    "modules/{$module}/Domain/Actions",
+                    "modules/{$module}/Domain/Queries",
+                    "modules/{$module}/Domain/ValueObjects",
+                    "modules/{$module}/Domain/Exceptions",
+                    "modules/{$module}/Domain/Enums",
+                    "modules/{$module}/tests",
+                    "modules/{$module}/tests/Unit",
+                ]
+                : [
+                    // Root + parents
+                    "modules/{$module}",
+                    "modules/{$module}/App",
+                    "modules/{$module}/App/Http",
+                    "modules/{$module}/Domain",
+                    "modules/{$module}/Database",
+                    "modules/{$module}/Routes",
+                    "modules/{$module}/tests",
+                    // Leaves
+                    "modules/{$module}/App/Http/Controllers",
+                    "modules/{$module}/App/Http/Requests",
+                    "modules/{$module}/App/Models",
+                    "modules/{$module}/App/Providers",
+                    "modules/{$module}/App/Repositories",
+                    "modules/{$module}/Domain/DTO",
+                    "modules/{$module}/Domain/Contracts",
+                    "modules/{$module}/Domain/Actions",
+                    "modules/{$module}/Domain/Queries",
+                    "modules/{$module}/Database/migrations",
+                    "modules/{$module}/tests/Feature",
+                    "modules/{$module}/tests/Unit",
+                    "modules/{$module}/tests/Unit/fakes",
+                ];
 
             foreach ($dirs as $d) {
                 if (!$dry) {
@@ -119,31 +142,33 @@ final class ModuleScaffoldCommand extends BaseCommand
                 $this->safe->writeNew($manifest, $pathProvider, $moduleProvider, $force);
             }
 
-            $routeProvider = $this->render('ddd-lite/route-service-provider.stub', [
-                'Module' => $module,
-            ]);
-            if (!$dry) {
-                $this->safe->writeNew($manifest, "modules/{$module}/App/Providers/RouteServiceProvider.php", $routeProvider, $force);
-            }
+            if (!$shared) {
+                $routeProvider = $this->render('ddd-lite/route-service-provider.stub', [
+                    'Module' => $module,
+                ]);
+                if (!$dry) {
+                    $this->safe->writeNew($manifest, "modules/{$module}/App/Providers/RouteServiceProvider.php", $routeProvider, $force);
+                }
 
-            $eventProvider = $this->render('ddd-lite/event-service-provider.stub', [
-                'Module' => $module,
-            ]);
-            if (!$dry) {
-                $this->safe->writeNew($manifest, "modules/{$module}/App/Providers/EventServiceProvider.php", $eventProvider, $force);
-            }
+                $eventProvider = $this->render('ddd-lite/event-service-provider.stub', [
+                    'Module' => $module,
+                ]);
+                if (!$dry) {
+                    $this->safe->writeNew($manifest, "modules/{$module}/App/Providers/EventServiceProvider.php", $eventProvider, $force);
+                }
 
-            $routesWeb = $this->render('ddd-lite/routes.stub', []);
-            if (!$dry) {
-                $this->safe->writeNew($manifest, "modules/{$module}/Routes/web.php", $routesWeb, $force);
-            }
+                $routesWeb = $this->render('ddd-lite/routes.stub', []);
+                if (!$dry) {
+                    $this->safe->writeNew($manifest, "modules/{$module}/Routes/web.php", $routesWeb, $force);
+                }
 
-            $routesApi = $this->render('ddd-lite/routes-api.stub', [
-                'Module' => $module,
-                'module' => Str::kebab($module),
-            ]);
-            if (!$dry) {
-                $this->safe->writeNew($manifest, "modules/{$module}/Routes/api.php", $routesApi, $force);
+                $routesApi = $this->render('ddd-lite/routes-api.stub', [
+                    'Module' => $module,
+                    'module' => Str::kebab($module),
+                ]);
+                if (!$dry) {
+                    $this->safe->writeNew($manifest, "modules/{$module}/Routes/api.php", $routesApi, $force);
+                }
             }
 
             if (!$dry) {

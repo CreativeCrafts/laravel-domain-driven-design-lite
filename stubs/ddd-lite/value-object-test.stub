@@ -1,0 +1,22 @@
+<?php
+
+declare(strict_types=1);
+
+use Modules\{{ module }}\Domain\ValueObjects\{{ class }};
+{{ validationImports }}
+
+it('constructs {{ class }}', function (): void {
+    $vo = {{ class }}::make({{ sampleValue }});
+
+    expect($vo->value)->toBe({{ sampleValue }});
+});
+
+it('compares {{ class }} by value', function (): void {
+    $a = {{ class }}::make({{ sampleValue }});
+    $b = {{ class }}::make({{ sampleValue }});
+    $c = {{ class }}::make({{ otherValue }});
+
+    expect($a->equals($b))->toBeTrue();
+    expect($a->equals($c))->toBeFalse();
+});
+{{ validationTest }}

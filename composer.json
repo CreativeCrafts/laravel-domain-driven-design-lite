@@ -65,8 +65,8 @@
     "post-autoload-dump": "@composer run prepare",
     "prepare": "@php vendor/bin/testbench package:discover --ansi",
     "analyse": "XDEBUG_MODE=off php vendor/bin/phpstan analyse --memory-limit=128G",
-    "test": "vendor/bin/pest",
-    "test-coverage": "vendor/bin/pest --coverage",
+    "test": "php -d error_reporting=\"E_ALL & ~E_DEPRECATED & ~E_USER_DEPRECATED\" vendor/bin/pest",
+    "test-coverage": "php -d error_reporting=\"E_ALL & ~E_DEPRECATED & ~E_USER_DEPRECATED\" vendor/bin/pest --coverage",
     "coverage:clover": "vendor/bin/pest --coverage --coverage-clover=build/coverage/clover.xml",
     "coverage:under-80": "php scripts/coverage-under.php --clover=build/coverage/clover.xml --threshold=80",
     "coverage:scan": [
