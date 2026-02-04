@@ -756,6 +756,21 @@ parameters:
 
 **Boundary rule of thumb:** Domains depend only on Shared + their own contracts. App layer can orchestrate across modules via contracts and adapters.
 
+**Limitations & Mitigations (circular dependencies)**
+- Deptrac can detect cycles but won’t tell you how to break them. When a cycle appears, move shared contracts/value objects into `Shared/Domain` and depend on those instead of cross‑module concrete classes.
+- Avoid App ↔ Domain cycles by keeping infrastructure in App and interfaces in Domain.
+- If you must allow a dependency for a transition period, document it explicitly and remove it once the migration is complete.
+
+**Shared concepts + cross‑module communication (tenant‑safe patterns)**
+- Put common value objects and contracts in `Shared/Domain` (e.g., `TenantId`, `Money`, `Period`).
+- Expose inter‑module capabilities via **Domain contracts** (e.g., `Billing\Domain\Contracts\Invoices`), and bind App implementations in the owning module.
+- Prefer **application services** in App for orchestration across modules; Domain actions should stay within their module boundary.
+
+**Tenant isolation guidelines**
+- Always pass `TenantId` into Domain actions or repositories; never infer tenancy inside Domain from HTTP or globals.
+- In App repositories, scope every query by tenant (e.g., `->where('tenant_id', $tenantId->value)`).
+- For cross‑module reads, use contracts that accept `TenantId` explicitly to prevent accidental leakage.
+
 #### Safe Refactor Workflow with `--dry-run` + Rollback
 
 Use dry‑run previews and manifests to refactor large features into modules safely.
@@ -767,6 +782,9 @@ php artisan ddd-lite:convert Billing \
   --paths=app/Models,app/Http/Controllers,app/Http/Requests \
   --dry-run
 ```
+**Syntax reminders**
+- `--paths` is a comma‑separated list of directories (no spaces).
+- `--plan-moves` discovers candidates only (no writes).
 
 **2) Apply moves with review (writes manifest)**
 ```bash
@@ -782,6 +800,11 @@ Manifest: 55f96156eac4ea63
 php artisan ddd-lite:manifest:show 55f96156eac4ea63
 ```
 Each action records the file path and the type (create/update/move).
+
+**How to read dry‑run output**
+- `move` indicates a file will be relocated into the module.
+- `update` indicates a namespace or import rewrite.
+- If you see unexpected paths, narrow `--paths` before applying moves.
 
 **4) Rollback if needed**
 ```bash
@@ -803,6 +826,7 @@ php artisan ddd-lite:make:repository Billing Billing --dry-run
 **Error handling tips**
 - If a command fails after writing files, rollback using the manifest id printed in the output.
 - For repeated refactors, keep the manifest id in your PR notes.
+ - If you hit unexpected rewrites, run `ddd-lite:convert <Module> --report` to review planned namespace changes before applying.
 
 **Before/After tree (concrete example)**
 
