@@ -20,6 +20,7 @@ php artisan ddd-lite:publish:quality --target=all
 
 ## 📚 Contents
 
+- [Start Here](#start-here)
 - [What is DDD‑Lite?](#what-is-ddd-lite)
 - [Architecture Overview](#architecture-overview)
 - [Requirements](#requirements)
@@ -40,6 +41,14 @@ php artisan ddd-lite:publish:quality --target=all
 - [Security](#security)
 - [Credits](#credits)
 - [License](#license)
+
+<a id="start-here"></a>
+## 🧩 Start Here
+
+If you only read three sections:
+- **Getting Started (QuickStart)** – a 60‑second setup.
+- **Common Workflows** – the most practical end‑to‑end examples.
+- **Command Reference** – every command and flag in one place.
 
 <a id="what-is-ddd-lite"></a>
 ### 🧭 What is DDD-Lite?
