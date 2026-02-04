@@ -1,6 +1,6 @@
 [![Latest Version on Packagist](https://img.shields.io/packagist/v/creativecrafts/laravel-domain-driven-design-lite.svg?style=flat-square)](https://packagist.org/packages/creativecrafts/laravel-domain-driven-design-lite)
 [![GitHub Tests Action Status](https://img.shields.io/github/actions/workflow/status/creativecrafts/laravel-domain-driven-design-lite/ci.yml?branch=main&label=tests&style=flat-square)](https://github.com/creativecrafts/laravel-domain-driven-design-lite/actions?query=workflow%3ACI+branch%3Amain)
-[![GitHub Code Style Action Status](https://img.shields.io/github/actions/workflow/status/creativecrafts/laravel-domain-driven-design-lite/pint-autofix.yml?branch=main&label=code%20style&style=flat-square)](https://github.com/creativecrafts/laravel-domain-driven-design-lite/actions?query=workflow%3A"Pint+auto-fix"+branch%3Amain)
+[![Code Style](https://img.shields.io/badge/code%20style-pint-blue?style=flat-square)](https://github.com/creativecrafts/laravel-domain-driven-design-lite/actions/workflows/pint-autofix.yml)
 [![Total Downloads](https://img.shields.io/packagist/dt/creativecrafts/laravel-domain-driven-design-lite.svg?style=flat-square)](https://packagist.org/packages/creativecrafts/laravel-domain-driven-design-lite)
 
 > Pragmatic, Laravel-native **DDD modules** with generators, safety rails, and CI helpers – without drowning you in ceremony.
