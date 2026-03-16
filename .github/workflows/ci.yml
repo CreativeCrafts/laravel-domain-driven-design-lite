@@ -38,7 +38,7 @@ jobs:
           extensions: mbstring, intl, dom, fileinfo
 
       - name: Install dependencies (cached)
-        uses: ramsey/composer-install@v3
+        uses: ramsey/composer-install@v4
         with:
           composer-options: --no-interaction --no-progress --prefer-dist
 
