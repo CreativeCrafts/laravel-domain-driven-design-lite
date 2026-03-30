@@ -5,15 +5,26 @@ All notable changes to `laravel-domain-driven-design-lite` will be documented in
 The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.0.5 - 2026-03-30
+
+### [0.0.5] - 2026-03-30
+
+#### Changed
+
+- Updated `ddd-lite:module` command to omit `EventServiceProvider` and `RouteServiceProvider` registration when the `--shared` flag is used.
+- Refactored `module-service-provider.stub` to support dynamic registration blocks.
+
 ## [0.0.5] - 2026-03-30
 
 ### Changed
+
 - Updated `ddd-lite:module` command to omit `EventServiceProvider` and `RouteServiceProvider` registration when the `--shared` flag is used.
 - Refactored `module-service-provider.stub` to support dynamic registration blocks.
 
 ## [0.0.4] - 2026-03-30
 
 ### Changed
+
 - Expanded framework compatibility to include Laravel 13.x (`illuminate/* ^12.0|^13.0`).
 - Updated `symfony/uid` dependency to support `^7.3|^8.0`.
 - Updated `orchestra/testbench` dev-dependency to support `^10.6|^11.0`.
@@ -97,6 +108,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Rich set of make:* generators for domain and app layers**
   
   - Domain-focused generators:
+    
     - `ddd-lite:make:dto` – typed DTO classes in `Domain/DTO`.
     - `ddd-lite:make:action` – domain actions in `Domain/Actions`.
     - `ddd-lite:make:contract` – domain contracts with optional fake implementations.
@@ -106,6 +118,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `ddd-lite:make:query`, `ddd-lite:make:query-builder`, `ddd-lite:make:aggregator` – read-side helpers.
     
   - App-layer generators:
+    
     - `ddd-lite:make:controller` – REST/Inertia controllers in the module’s `App/Http/Controllers`.
     - `ddd-lite:make:request` – form requests for validation.
     - `ddd-lite:make:model` – Eloquent models scoped to the module.
@@ -120,10 +133,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Manifest-backed safe file operations**
   
   - All mutating commands (module scaffold, make:*, convert, doctor fixes, publish:quality) are tracked via a **manifest**:
+    
     - `ddd-lite:manifest:list` – list manifests with filters for module, type, and date.
     - `ddd-lite:manifest:show` – show individual manifests, including created/updated/deleted/moved files.
     
   - Shared support for:
+    
     - `--dry-run` – preview without changing files.
     - `--rollback=<manifest-id>` – rollback a previous run using its manifest id.
     
@@ -145,27 +160,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Quality configuration publishing**
   
   - `ddd-lite:publish:quality` command to publish quality tooling configs into the host application:
+    
     - `phpstan.app.neon` for strict static analysis.
     - `deptrac.app.yaml` to model architectural boundaries and layer constraints.
     - `tests/ArchitectureTest.php` for Pest-based architectural checks (debug helpers, env usage, layer rules, etc.).
     
   - Targeted publishing:
+    
     - `--target=all|phpstan|deptrac|pest-arch`.
     
   
 - **Doctor commands for structural and domain checks**
   
   - `ddd-lite:doctor`:
+    
     - Inspects module wiring (providers, routes, PSR-4 consistency, bootstrap wiring).
     - Can attempt automated fixes when appropriate.
     - JSON output for tooling (`--json`).
     
   - `ddd-lite:doctor:domain`:
+    
     - Integrates with Deptrac to enforce domain purity and module boundaries.
     - Can consume Deptrac JSON reports or run Deptrac directly.
     - Configurable failure modes (`--fail-on` for violations, uncovered, errors).
     
   - `ddd-lite:doctor-ci`:
+    
     - CI-oriented command combining structural and domain checks.
     - JSON output with CI-friendly exit codes.
     
@@ -206,11 +226,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Made the package strictly dev/CI tooling (no runtime dependency required)**
   
   - Generated code no longer needs any `CreativeCrafts\DomainDrivenDesignLite\*` class at runtime.
+    
   - The aggregate root stub is now a **plain PHP class**:
+    
     - `stubs/ddd-lite/aggregate-root.stub` no longer imports or extends a package base class.
     - Domain aggregates are self-contained and framework-agnostic by default.
     
   - This makes it safe for consuming applications to install the package as a **dev dependency** and deploy with `composer install --no-dev`, as long as their own code does not manually reference package internals.
+    
   
 - **Simplified the service provider; removed Spatie package-tools dependency**
   
@@ -222,19 +245,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Made php-parser optional and clearly suggested**
   
   - `nikic/php-parser` is no longer a hard requirement.
+    
   - It is now declared under `suggest` in `composer.json`:
+    
     - `"nikic/php-parser": "Required for ddd-lite:convert and advanced namespace rewrites"`.
     
   - The `NamespaceRewriter` performs a runtime `class_exists(ParserFactory::class)` check and throws a clear exception if php-parser is needed but not installed.
+    
   - This keeps the default install lean for teams who do not use the AST-based conversion features.
+    
   
 - **Improved publish configuration safety**
   
   - Consolidated and corrected publish paths for:
+    
     - Stubs directory (`stubs/ddd-lite`).
     - Doctor report schema.
     
   - The generic `ddd-lite` publish tag now publishes both stubs and the doctor schema, providing a single entry point for new users while keeping the more granular tags `ddd-lite-stubs` and `ddd-lite-schemas`.
+    
   
 - **Documentation & messaging**
   
