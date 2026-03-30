@@ -60,7 +60,9 @@ final class DoctorCiCommand extends BaseCommand
             );
         } else {
             $this->line('DDD-lite Doctor CI');
-            $this->twoColumn('Paths', implode(', ', array_map(function (string $p): string { return $this->rel($p); }, $paths)));
+            $this->twoColumn('Paths', implode(', ', array_map(function (string $p): string {
+            return $this->rel($p);
+            }, $paths)));
 
             foreach ($issues as $i) {
                 $severity = is_string($i['severity'] ?? null) ? strtoupper($i['severity']) : 'WARNING';
