@@ -133,9 +133,14 @@ final class ModuleScaffoldCommand extends BaseCommand
                 $this->line("dir: {$d}");
             }
 
+            $registration = $shared
+                ? ''
+                : "        \$this->app->register(EventServiceProvider::class);\n        \$this->app->register(RouteServiceProvider::class);";
+
             $providerClass = "{$module}ServiceProvider";
             $moduleProvider = $this->render('ddd-lite/module-service-provider.stub', [
                 'Module' => $module,
+                'Registration' => $registration,
             ]);
             $pathProvider = "modules/{$module}/App/Providers/{$providerClass}.php";
             if (!$dry) {

@@ -5,6 +5,12 @@ All notable changes to `laravel-domain-driven-design-lite` will be documented in
 The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.5] - 2026-03-30
+
+### Changed
+- Updated `ddd-lite:module` command to omit `EventServiceProvider` and `RouteServiceProvider` registration when the `--shared` flag is used.
+- Refactored `module-service-provider.stub` to support dynamic registration blocks.
+
 ## [0.0.4] - 2026-03-30
 
 ### Changed

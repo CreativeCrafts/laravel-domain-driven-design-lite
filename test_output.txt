@@ -1,0 +1,285 @@
+
+   PASS  Tests\Feature\Console\BindContractCommandTest
+  ✓ it dry-run injects binding plan into provider without writing when…  0.09s  
+
+   PASS  Tests\Feature\Console\BoundariesCommandTest
+  ✓ it delegates boundaries to doctor:domain with stdin report           0.04s  
+
+   PASS  Tests\Feature\Console\MakeActionCommandTest
+  ✓ it previews and generates a Domain Action with optional subnamespac… 0.01s  
+  ✓ it supports rollback for action generation                           0.01s  
+
+   PASS  Tests\Feature\Console\DoctorCommandTest
+  ✓ it reports mapping presence and would ensure routing keys in dry-ru… 0.03s  
+  ✓ it emits JSON with composer/missing-routing/provider issues in dry-… 0.01s  
+
+   PASS  Tests\Feature\Console\ManifestListFiltersTest
+  ✓ it filters by module and type and time window                        0.09s  
+
+   PASS  Tests\Unit\Support\BootstrapInspectorIncompleteChainTest
+  ✓ it returns false when Application::configure chain lacks ->create()
+
+   PASS  Tests\Feature\Console\DoctorCommandMoreTest
+  ✓ it warns when filtering to a non-existent module                     0.01s  
+  ✓ it fails gracefully with invalid composer.json                       0.01s  
+  ✓ it emits dry-run actions for class/filename mismatch with prefer=cl… 0.01s  
+  ✓ it can perform a change and then rollback by manifest id             0.14s  
+
+   PASS  Tests\Feature\Console\MakeControllerCommandTest
+  ✓ it supports rollback                                                 0.02s  
+  ✓ it creates an Inertia resource controller                            0.01s  
+  ✓ it is idempotent without --force when content matches
+  ✓ it does not create controller file on dry-run
+  ✓ it creates a minimal controller when not resource                    0.01s  
+
+   PASS  Tests\Unit\Support\Psr4GuardNoopTest
+  ✓ it does nothing when Modules mapping already exists and when correct casing folder exists
+
+   PASS  Tests\Feature\Console\MakeDtoCommandTest
+  ✓ it supports rollback by manifest id                                  0.01s  
+  ✓ it creates a DTO file                                                0.01s  
+  ✓ it is idempotent without --force when unchanged
+  ✓ it overwrites with --force and creates a backup                      0.01s  
+
+   PASS  Tests\Unit\Support\AggregateRootTest
+  ✓ it records and releases events and exposes id
+
+   PASS  Tests\Feature\Console\ManifestShowCommandTest
+  ✓ it fails gracefully when manifest is missing or invalid JSON
+  ✓ it shows a manifest in JSON and infers module from paths
+
+   PASS  Tests\Unit\Support\SafeFilesystemTest
+  ✓ it tracks mkdir on ensureDirTracked only when directory does not exist
+  ✓ it writeNew creates file and tracks create; overwrite creates backup and tracks update
+
+   PASS  Tests\Unit\Support\BootstrapInspectorEdgeTest
+  ✓ it returns false/inputs when Application::configure chain is absent
+  ✓ it returns full inputs from missingRoutingKeys when withRouting is absent
+
+   PASS  Tests\Unit\Support\DoctorJsonReporterTest
+  ✓ it builds a report with correct totals and ok flag
+
+   PASS  Tests\Unit\Support\Psr4GuardMalformedComposerTest
+  ✓ it normalizes invalid autoload/psr-4 shapes and writes Modules mapping with backup
+
+   PASS  Tests\Unit\Console\BaseCommandTest
+  ✓ it exercises readStub host override, render interpolation, rel, begin/load manifest
+
+   PASS  Tests\Unit\Support\BootstrapInspectorTest
+  ✓ it computes missing routing keys when absent
+  ✓ it detects provider mentioned and inside configure chain and standalone block
+
+   PASS  Tests\Unit\Support\BootstrapInspectorMoreTest
+  ✓ it handles quotes/escapes in findMatchingParen path and negative cases
+
+   PASS  Tests\Feature\Console\ConvertCommandPlanTest
+  ✓ it plans moves with defaults                                         0.01s  
+  ✓ it suggests contracts when --suggest-contracts is enabled            0.01s  
+  ✓ it accepts explicit paths
+  ✓ it respects only and except filters
+
+   PASS  Tests\Feature\Console\ManifestListEmptyTest
+  ✓ it returns success and empty list when no manifest dir exists        0.01s  
+
+   PASS  Tests\Feature\Console\MakeQueryAggregatorCommandTest
+  ✓ it is idempotent when regenerated unchanged                          0.01s  
+  ✓ it creates an Aggregator
+  ✓ it dry-run prints a plan and performs no writes
+  ✓ it supports rollback by manifest id                                  0.02s  
+  ✓ it supports --force overwrite with backup                            0.01s  
+
+   PASS  Tests\Feature\Console\MakeRequestCommandTest
+  ✓ it is idempotent without --force when unchanged                      0.01s  
+  ✓ it supports rollback by manifest id                                  0.01s  
+  ✓ it overwrites with --force and creates backup                        0.01s  
+  ✓ it prints a dry-run plan and performs no writes                      0.01s  
+  ✓ it creates a FormRequest in the module                               0.01s  
+  ✓ it fails without --force when content differs                        0.01s  
+
+   PASS  Tests\Feature\Console\DoctorDomainCommandMoreTest
+  ✓ it coerces string numbers in stdin-report and fails with fail-on an… 0.05s  
+  ✓ it respects fail-on uncovered and errors for stdin-report            0.06s  
+  ✓ it fails on stdin-report with parse error and emits parse_error in…  0.03s  
+  ✓ it prints conversion health summary in non-JSON mode when legacy cl… 0.03s  
+  ✓ it warns in non-JSON mode when stdin report cannot be parsed         0.03s  
+
+   PASS  Tests\Unit\Support\FiltersTest
+  ✓ it allows kinds based on only/except lists and forbids other by default
+
+   PASS  Tests\Feature\Console\DoctorDomainCommandTest
+  ✓ it fails fast with friendly JSON when deptrac bin is missing         0.03s  
+  ✓ it emits JSON summary from stdin report and exits 0 when no violati… 0.03s  
+  ✓ it emits JSON summary and exits non-zero when violations > 0 and fa… 0.03s  
+
+   PASS  Tests\Feature\Console\PublishQualityCommandTest
+  ✓ it publishes all quality artifacts                                   0.01s  
+  ✓ it is idempotent when unchanged                                      0.01s  
+  ✓ it supports rollback by manifest id                                  0.05s  
+  ✓ it dry-run does not write any files for phpstan target               0.01s  
+  ✓ it overwrites with --force and creates a backup                      0.01s  
+  ✓ it honors dry-run (no writes)                                        0.01s  
+  ✓ it overwrites with --force and creates a backup for phpstan target   0.01s  
+
+   PASS  Tests\Feature\Console\ConvertCommandTest
+  ✓ it converts app by creating module skeleton, provider, and wiring b… 0.01s  
+  ✓ it dry-run prints a plan and performs no writes
+  ✓ it supports rollback by manifest id                                  0.04s  
+
+   PASS  Tests\ArchTest
+  ✓ it will not use debugging functions                                  0.26s  
+
+   PASS  Tests\Feature\Console\MakeValueObjectCommandTest
+  ✓ it supports rollback by manifest id                                  0.01s  
+  ✓ it overwrites with --force and creates a backup                      0.01s  
+  ✓ it creates a Value Object
+  ✓ it is idempotent when unchanged (no --force)
+  ✓ it supports dry-run without writes
+
+   PASS  Tests\Feature\Console\MakeAggregateRootCommandTest
+  ✓ it creates an Aggregate Root                                         0.01s  
+  ✓ it is idempotent when no changes are needed                          0.01s  
+  ✓ it supports rollback by manifest id                                  0.01s  
+  ✓ it supports force overwrite and creates backups                      0.01s  
+  ✓ it supports dry-run without writes
+
+   PASS  Tests\Feature\Console\ModuleScaffoldCommandCoverageTest
+  ✓ it performs a dry-run without creating any files                     0.01s  
+  ✓ it renames lowercase folder to PascalCase when --fix-psr4 is set     0.01s  
+  ✓ it fails without --force when provider already exists, and succeeds… 0.01s  
+  ✓ it scaffolds a module and registers providers                        0.01s  
+
+   PASS  Tests\Feature\Console\ManifestMoveTest
+  ✓ it tracks move and rolls back by moving file back                    0.05s  
+
+   PASS  Tests\Unit\Support\Psr4GuardPsr4ScalarTest
+  ✓ it coerces non-array psr-4 value to array and injects Modules mapping
+
+   PASS  Tests\Feature\Console\MakeRepositoryCommandTest
+  ✓ it previews and generates an Eloquent repository with default test   0.01s  
+  ✓ it supports rollback for repository generation                       0.01s  
+
+   PASS  Tests\Feature\Console\DoctorCiCommandTest
+  ✓ it passes with zero exit when no violations and outputs ok=true
+  ✓ it emits JSON output and a sensible exit code when analyzing a minimal bootstrap
+
+   PASS  Tests\Feature\Console\ManifestCommandsTest
+  ✓ it lists manifests and shows one by id                               0.04s  
+
+   PASS  Tests\Feature\Console\MakeQueryBuilderCommandTest
+  ✓ it is idempotent when unchanged                                      0.01s  
+  ✓ it overwrites with --force and creates a backup                      0.01s  
+  ✓ it supports rollback by manifest id                                  0.01s  
+  ✓ it honors dry-run (no writes)
+  ✓ it creates a QueryBuilder class                                      0.01s  
+
+   PASS  Tests\Feature\Console\MakeProviderCommandTest
+  ✓ it creates a RouteServiceProvider and registers it                   0.01s  
+  ✓ it supports rollback for provider file and registration              0.01s  
+  ✓ it creates an EventServiceProvider and registers it                  0.01s  
+
+   PASS  Tests\Feature\Console\ConvertApplyMovesTest
+  ✓ it overwrites destination with --force                               0.01s  
+  ✓ it apply-moves dry-run prints plan and does not write
+  ✓ it apply-moves with --review asks per item and applies only approve… 0.01s  
+  ✓ it fails on destination exists without --force (guard remains intact)
+  ✓ it apply-moves with --all performs moves non-interactively           0.01s  
+
+   PASS  Tests\Unit\Support\DoctorCiJsonTest
+  ✓ it builds CI JSON with sorted normalized violations and correct totals/status
+
+   PASS  Tests\Feature\Console\MakeQueryCommandTest
+  ✓ it supports rollback by manifest id                                  0.01s  
+  ✓ it is idempotent when regenerated unchanged                          0.01s  
+  ✓ it creates a Query file (happy path)                                 0.01s  
+  ✓ it overwrites with --force and creates a backup                      0.01s  
+  ✓ it refuses overwrite without --force when content differs            0.01s  
+
+   PASS  Tests\Feature\Console\StubsDiffSyncCommandTest
+  ✓ it diffs and syncs stubs into app stubs directory                    0.01s  
+
+   PASS  Tests\Feature\Console\DoctorCiSchemaTest
+  ✓ it respects --fail-on policy
+  ✓ it emits schema-valid JSON
+
+   PASS  Tests\Unit\Support\Psr4GuardTest
+  ✓ it writes Modules mapping and tracks via manifest when not dry-run
+  ✓ it ensures Modules mapping in composer.json in dry-run without writing
+
+   PASS  Tests\Feature\Console\InitCommandTest
+  ✓ it initializes a project with module, quality configs, and CI file   0.01s  
+
+   PASS  Tests\Feature\Console\ModulesListCommandTest
+  ✓ it lists modules with health in json                                 0.01s  
+
+   PASS  Tests\Unit\Support\PhpUseEditorTest
+  ✓ it returns code unchanged when no imports are provided
+  ✓ it adds missing use statements after namespace and preserves existing ones
+
+   PASS  Tests\Feature\Console\MakeMigrationCommandTest
+  ✓ it supports rollback                                                 0.01s  
+  ✓ it creates a create-table migration by name inference
+  ✓ it creates an update migration when not a create
+
+   PASS  Tests\Feature\Console\MakeModelCommandTest
+  ✓ it creates a ULID-backed model with defaults                         0.01s  
+  ✓ it supports rollback                                                 0.01s  
+  ✓ it supports soft deletes, disables timestamps, and fillable list     0.01s  
+  ✓ it errors when both fillable and guarded are provided
+
+   PASS  Tests\Unit\Support\ClassFixerTest
+  ✓ it renames a file
+  ✓ it renames class inside file
+
+   PASS  Tests\Feature\Console\ConvertCommandExportPlanTest
+  ✓ it does not write export plan file in dry-run mode                   0.01s  
+  ✓ it exports conversion plan as json when requested
+
+   PASS  Tests\Unit\Support\Psr4GuardEdgeCasesTest
+  ✓ it throws when composer.json is missing
+  ✓ it throws a friendly error when composer.json JSON is valid but not an object
+  ✓ it assertOrFixCase is a no-op (no log) when neither correct nor lower dir exists
+
+   PASS  Tests\Unit\Support\PhpClassScannerTest
+  ✓ it extracts fqcn, namespace and short class
+
+   PASS  Tests\Feature\Console\MakeQueryTestsGenerationTest
+  ✓ it generates tests for query, query builder, and aggregator by defa… 0.01s  
+
+   PASS  Tests\Feature\Console\ConversionDiscoveryTest
+  ✓ it computes toNamespace from destination directory (not including filename)
+
+   PASS  Tests\Feature\Console\MakeContractCommandTest
+  ✓ it supports dry-run without writes
+  ✓ it creates a Domain Contract with methods and imports                0.01s  
+  ✓ it supports force overwrite and creates backups (and optional fake/test)
+  ✓ it skips test generation when --no-test is passed and supports roll… 0.01s  
+  ✓ it is idempotent when no changes are needed
+
+   PASS  Tests\Feature\Console\DoctorCiCommandTextTest
+  ✓ it scans directories for class/file mismatches and reports errors i… 0.01s  
+  ✓ it prints text report and respects --fail-on policies                0.01s  
+
+   PASS  Tests\Unit\Support\AppBootstrapEditorTest
+  ✓ it appends provider to existing withProviders list
+  ✓ it removes standalone $app->withProviders blocks
+  ✓ it ensures routing keys by injecting when missing and appending when partially present
+  ✓ it injects withProviders after configure when none exists
+
+   PASS  Tests\Feature\Console\ModuleScaffoldCommandTest
+  ✓ it removes empty module directories on rollback                      0.04s  
+
+   PASS  Tests\Feature\Console\DoctorDeepCommandTest
+  ✓ it runs deep checks when --deep is provided                          0.08s  
+
+   PASS  Tests\Feature\Console\BindContractCommandAdditionalTest
+  ✓ it is idempotent when binding already exists                         0.01s  
+  ✓ it writes binding and imports into provider and creates a manifest   0.01s  
+  ✓ it can rollback a previous binding and restore provider              0.01s  
+
+   PASS  Tests\Feature\Console\ModuleScaffoldSharedKernelTest
+  ✓ it scaffolds a shared kernel module without routes or http layer     0.01s  
+
+  Tests:    154 passed (592 assertions)
+  Duration: 2.20s
+  Random Order Seed: 1774885969
+
